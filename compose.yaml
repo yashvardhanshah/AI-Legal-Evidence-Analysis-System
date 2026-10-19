@@ -31,6 +31,10 @@ services:
       CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
       PRIVATE_ROOT: /private_data
       OCR_ENABLED: "true"
+      MAX_FILE_BYTES: ${MAX_FILE_BYTES:-20000000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ACCESS_MINUTES: ${ACCESS_MINUTES:-15}
+      REFRESH_DAYS: ${REFRESH_DAYS:-7}
     volumes:
       - ./.local/phase2:/private_data
     ports:

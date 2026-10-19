@@ -156,9 +156,14 @@ def ingest_batch(session, manifest_path: Path, approved_sha256: str, budget: int
     return {"job_id": str(job.id), "status": job.status, "imported": imported, "duplicates": duplicates, "failed": failures, "manifest_sha256": digest}
 
 
-def import_evidence(session, case_id: UUID, path: Path, provenance: str) -> Evidence:
-    if not session.get(Case, case_id) or not provenance.strip():
-        raise ValueError("Existing authorized case and provenance are required")
+def import_evidence(session, case_id: UUID, path: Path, provenance: str, uploader_id: UUID | None = None) -> Evidence:
+    from app.models import User
+    from app.case_api import authorized_case
+    from app.auth import audit
+    uploader = session.get(User, uploader_id) if uploader_id else None
+    if not uploader or not uploader.is_active or not provenance.strip():
+        raise ValueError("An explicit active uploader and provenance are required; prefer the authenticated upload API")
+    authorized_case(session, uploader, case_id, write=True)
     if path.stat().st_size > get_settings().max_file_bytes:
         raise ValueError("Evidence exceeds size limit")
     body = path.read_bytes()
@@ -167,10 +172,10 @@ def import_evidence(session, case_id: UUID, path: Path, provenance: str) -> Evid
     existing = session.scalar(select(Evidence).where(Evidence.case_id == case_id, Evidence.sha256 == original.sha256))
     if existing:
         return existing
-    record = Evidence(case_id=case_id, original_filename=path.name, mime_type=mime, byte_size=original.size, sha256=original.sha256, storage_key=original.key, provenance=provenance)
+    record = Evidence(case_id=case_id, uploader_id=uploader.id, original_filename=path.name, mime_type=mime, byte_size=original.size, sha256=original.sha256, storage_key=original.key, provenance=provenance)
     session.add(record)
     session.flush()
-    session.add(AuditLog(action="evidence_preserved", resource_type="evidence", resource_id=record.id, actor="operator-cli", details={"sha256": original.sha256, "case_id": str(case_id)}))
+    audit(session, uploader, "evidence.upload", "case", case_id, evidence_id=str(record.id), sha256=original.sha256, operator="local CLI")
     session.commit()
     return record
 

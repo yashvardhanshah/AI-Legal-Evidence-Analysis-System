@@ -1,0 +1,17 @@
+.secure-workspace { max-width: 1000px; margin: 0 auto; padding: 28px; color: #202d37; }
+.secure-workspace nav, .secure-workspace .actions, .secure-workspace .identity { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-bottom: 24px; }
+.secure-workspace a { color: #175c54; text-decoration: underline; }
+.secure-workspace h1 { font-size: 32px; margin: 24px 0 16px; }
+.secure-workspace h2 { font-size: 24px; margin: 32px 0 16px; }
+.secure-workspace p { margin: 12px 0; overflow-wrap: anywhere; }
+.secure-workspace form, .secure-workspace section { border: 1px solid #d2dad6; padding: 22px; margin: 20px 0; background: white; border-radius: 8px; }
+.secure-workspace label { display: grid; gap: 8px; margin: 16px 0; font-weight: 600; }
+.secure-workspace input, .secure-workspace textarea, .secure-workspace select { border: 1px solid #9baea7; border-radius: 4px; padding: 10px; font: inherit; max-width: 100%; background: white; }
+.secure-workspace textarea { min-height: 100px; }
+.secure-workspace button { border: 1px solid #175c54; border-radius: 5px; background: #175c54; color: white; padding: 9px 14px; cursor: pointer; margin: 4px 0; }
+.secure-workspace button:disabled { opacity: .55; cursor: wait; }
+.secure-workspace .case-list { list-style: none; padding: 0; }
+.secure-workspace .case-list li { border: 1px solid #d2dad6; background: white; padding: 18px; margin: 14px 0; border-radius: 6px; }
+.secure-workspace code { overflow-wrap: anywhere; font-size: 13px; }
+.secure-workspace [role="alert"] { color: #8e2020; padding: 12px; background: #fff0ed; }
+.secure-workspace [role="status"] { padding: 12px; background: #edf5ef; overflow-wrap: anywhere; }

@@ -51,6 +51,7 @@ def main():
     evidence.add_argument("--case-id", type=UUID, required=True)
     evidence.add_argument("--file", type=Path, required=True)
     evidence.add_argument("--provenance", required=True)
+    evidence.add_argument("--uploader-id", type=UUID, required=True)
     provision = commands.add_parser("import-provision")
     provision.add_argument("--manifest", type=Path, required=True)
     commands.add_parser("stats")
@@ -85,7 +86,7 @@ def main():
                 result = semantic_search(session, args.query, args.limit)
             elif args.command == "import-evidence":
                 from app.ingestion import import_evidence
-                record = import_evidence(session, args.case_id, args.file, args.provenance)
+                record = import_evidence(session, args.case_id, args.file, args.provenance, args.uploader_id)
                 result = {"evidence_id": str(record.id), "sha256": record.sha256, "bytes": record.byte_size}
             elif args.command == "import-provision":
                 from app.ingestion import import_provision

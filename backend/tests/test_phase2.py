@@ -56,7 +56,7 @@ def test_query_validation_and_private_routes():
     assert client.post("/api/v1/search/judgments", json={"query": "equality", "limit": 1000}).status_code == 422
     assert client.get("/api/v1/evidence").status_code == 404
     assert client.get("/private_data/originals/file").status_code == 404
-    assert client.get("/api/v1/cases").status_code == 404
+    assert client.get("/api/v1/cases").status_code == 401
 
 
 @pytest.fixture
@@ -100,7 +100,7 @@ def test_additive_migrations_preserve_phase1():
             command.upgrade(config, "head")
             assert connection.scalar(text("SELECT value FROM system_metadata WHERE key='preservation_probe'")) == "retained"
             assert connection.scalar(text("SELECT value FROM system_metadata WHERE key='development_phase'")) == "1"
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0002_legal_data"
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0003_private_workspace"
             tables = set(inspect(connection).get_table_names(schema=schema))
             assert {"dataset_sources", "judgments", "judgment_passages", "legal_provisions", "cases", "evidence", "evidence_artifacts", "processing_jobs", "audit_logs"}.issubset(tables)
         finally:
@@ -110,8 +110,9 @@ def test_additive_migrations_preserve_phase1():
 def test_database_foundation_preserved(db):
     assert db.get(SystemMetadata, "development_phase").value == "1"
     assert db.get(SystemMetadata, "legal_data_schema").value == "2"
-    assert db.scalar(text("SELECT count(*) FROM cases")) == 0
-    assert db.scalar(text("SELECT count(*) FROM evidence")) == 0
+    # Phase 3 permits user-created cases; no legacy rows are assigned fake owners.
+    assert db.scalar(text("SELECT count(*) FROM cases WHERE owner_id IS NULL")) == 0
+    assert db.scalar(text("SELECT count(*) FROM evidence WHERE uploader_id IS NULL")) == 0
 
 
 def test_public_library_api(db):

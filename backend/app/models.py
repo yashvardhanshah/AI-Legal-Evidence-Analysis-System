@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -112,7 +112,7 @@ class LegalProvision(Timestamped, Base):
 
 
 class Case(Timestamped, Base):
-    """Storage foundation only; no case routes until Phase 3 authorization."""
+    """Private workspace; legacy unowned rows are inaccessible except to admins."""
     __tablename__ = "cases"
     __table_args__ = (CheckConstraint("status IN ('active', 'archived')", name="ck_case_status"),)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -121,6 +121,10 @@ class Case(Timestamped, Base):
     description: Mapped[str | None] = mapped_column(Text)
     jurisdiction: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)
+    owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    opened_on: Mapped[date | None] = mapped_column(Date)
+    incident_on: Mapped[date | None] = mapped_column(Date)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Evidence(Timestamped, Base):
@@ -137,6 +141,8 @@ class Evidence(Timestamped, Base):
     sha256: Mapped[str] = mapped_column(String(64), index=True)
     storage_key: Mapped[str] = mapped_column(Text)
     provenance: Mapped[str] = mapped_column(Text)
+    uploader_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    captured_on: Mapped[date | None] = mapped_column(Date)
 
 
 class EvidenceArtifact(Timestamped, Base):
@@ -184,3 +190,34 @@ class AuditLog(Base):
     actor: Mapped[str] = mapped_column(String(255))
     details: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class User(Timestamped, Base):
+    __tablename__ = "users"
+    __table_args__ = (CheckConstraint("role IN ('administrator', 'investigator', 'lawyer', 'legal_researcher')", name="ck_user_role"),)
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    email: Mapped[str] = mapped_column(String(254), unique=True)
+    display_name: Mapped[str] = mapped_column(String(100))
+    password_hash: Mapped[str] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(String(30), default="legal_researcher")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    failed_logins: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    refresh_hash: Mapped[str] = mapped_column(String(64))
+    csrf_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CaseMember(Base):
+    __tablename__ = "case_members"
+    case_id: Mapped[UUID] = mapped_column(ForeignKey("cases.id", ondelete="RESTRICT"), primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

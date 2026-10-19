@@ -32,7 +32,10 @@ export default function Home() {
       <p className="nav-label">WORKSPACE</p>
       <nav aria-label="Main navigation">
         <a className="nav-active" href="/">◈ <span>Overview</span></a>
-        {["Cases", "Evidence library", "Legal research", "Reports"].map(label => <button key={label} disabled title="Available in a later phase"><span aria-hidden="true">◇</span> {label}<small>Planned</small></button>)}
+        <a href="/cases">◇ <span>Cases & evidence</span></a>
+        <a href="/login">◇ <span>Login</span></a>
+        <a href="/register">◇ <span>Register</span></a>
+        {["Legal research", "Reports"].map(label => <button key={label} disabled title="Available in a later phase"><span aria-hidden="true">◇</span> {label}<small>Planned</small></button>)}
       </nav>
       <div className="sidebar-note"><span className="tiny-label">ACADEMIC PROJECT</span><p>Built for careful inquiry.<br />Designed for human review.</p><span>India · Development workspace</span></div>
     </aside>
@@ -49,7 +52,7 @@ export default function Home() {
           </div>
           <p className="check-note">{checkedAt ? `Last checked at ${checkedAt}.` : "Checking application readiness."} {!loading && !connected && "Start the backend and apply the database migration, then refresh."}</p>
         </section>
-        <div className="lower-grid"><section className="panel"><span className="eyebrow">YOUR WORKSPACE</span><h2>Ready for the next phase</h2><div className="empty-symbol" aria-hidden="true">▱</div><h3>No case data is available yet</h3><p>Case records, evidence counts and activity will appear after the database schema and authorized case workflows are implemented.</p><span className="outline-tag">Private evidence uploads are not enabled</span></section>
+        <div className="lower-grid"><section className="panel"><span className="eyebrow">YOUR WORKSPACE</span><h2>Private cases & evidence</h2><div className="empty-symbol" aria-hidden="true">▱</div><h3>Open your case workspace</h3><p>Sign in to view your authorized cases, preserve original evidence and verify file hashes. Case details require current permission.</p><a href="/cases" className="outline-tag">Open cases</a></section>
         <section className="panel roadmap"><span className="eyebrow">WHAT COMES NEXT</span><h2>A measured path forward</h2>{modules.map(([phase, title, text]) => <div className="roadmap-row" key={phase}><span>{phase}</span><div><h3>{title}</h3><p>{text}</p></div></div>)}</section></div>
         <footer><span>AI Legal Evidence Analysis System</span><span>Decision support · Qualified human review required</span></footer>
       </main>

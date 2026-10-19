@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +17,14 @@ class Settings(BaseSettings):
     ocr_enabled: bool = False
     ocr_timeout_seconds: int = Field(default=60, gt=0, le=300)
     chroma_collection: str = "judgment_passages_minilm_v1"
+    jwt_secret: SecretStr | None = None
+    jwt_issuer: str = "legal-evidence-local"
+    jwt_audience: str = "legal-evidence-workspace"
+    access_minutes: int = Field(default=15, ge=1, le=60)
+    refresh_days: int = Field(default=7, ge=1, le=30)
+    cookie_secure: bool = False  # Set true behind HTTPS before any non-local deployment.
+    video_validation_timeout: int = Field(default=20, ge=1, le=60)
+    video_max_seconds: int = Field(default=3600, ge=1, le=14400)
 
 
 @lru_cache

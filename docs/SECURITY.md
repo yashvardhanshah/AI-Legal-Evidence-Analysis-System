@@ -1,0 +1,48 @@
+# Phase 3 access policy
+
+All services remain bound to loopback. No default users, administrator passwords or public evidence links are installed. Public registration always creates `legal_researcher`; extra request fields, including role and owner overrides, are rejected. An owner can create, read, edit and archive their own cases and upload originals. Ownership is assigned from the authenticated database user, never from request metadata.
+
+| Role | Own cases | Assigned cases | Unassigned cases | Assign roles |
+| --- | --- | --- | --- | --- |
+| legal_researcher | Manage and upload | Read and download | Hidden (404) | No |
+| investigator | Manage and upload | Read, edit and upload | Hidden (404) | No |
+| lawyer | Manage and upload | Read, edit and upload | Hidden (404) | No |
+| administrator | All cases; audited access | All cases | All cases | Yes, except self |
+
+Only the owner or administrator can grant/revoke membership, archive, or view case audit history. Removing membership takes effect on subsequent authorization checks. Archived cases preserve evidence and permit authorized reads/downloads, but reject edits/uploads/new members. Access may still be revoked from archived cases. There is no permanent case/evidence deletion API and no ownership-transfer API. Existing Phase 2 rows without an owner/uploader are preserved; unowned cases are visible only to administrators. No legacy owner is fabricated.
+
+Public health and judgment/source/search/provision endpoints remain unauthenticated; ingestion-job responses remain limited to public corpus job kinds and sanitized metadata. Private cases, evidence, upload/download, membership, audit, workspace settings and administrator routes require authentication. Private storage is never mounted as an HTTP directory, and private storage keys are omitted from responses.
+
+## Authentication and browser handling
+
+Passwords use salted scrypt (`N=131072`, `r=8`, `p=1`, 32-byte output, 16-byte random salt); registration requires 12–128 characters and rejects trivial low-variety values. Login failures use a generic message, a database-backed 15-minute lock after five failures, and per-process IP throttling. Registration is also throttled. Email addresses are normalized; they are not email-verified in this academic local deployment.
+
+JWTs are signed with a fixed HS256 algorithm and validate issuer, audience, subject, session, type, issued/not-before/expiry times and token ID. Access lifetime defaults to 15 minutes, with a seven-day absolute refresh session lifetime. Refresh JWT hashes and session-bound CSRF hashes are stored in PostgreSQL. Rotation replaces the previous refresh hash; a replay with a valid session CSRF token revokes the session. Access checks also consult current user status/role and the session row, so logout immediately invalidates otherwise unexpired access JWTs. Role changes revoke all target-user sessions. Passwords, JWTs, refresh hashes and signing keys are never returned in user JSON or written to application audit details.
+
+Access and refresh JWTs use HttpOnly, SameSite=Strict host cookies. The readable CSRF cookie must match `X-CSRF-Token` on every mutation, including login/registration, and authenticated mutations also verify the session's CSRF hash. Supplied origins must match the configured allowlist; the Next.js proxy additionally checks same-host origins for mutations. The frontend stores no JWT in local/session storage and forwards only an allowlisted path to the fixed backend URL. Automatic refresh retries a protected request once. Private responses use `Cache-Control: no-store`.
+
+`COOKIE_SECURE=false` supports the existing loopback HTTP setup. HTTPS and `COOKIE_SECURE=true` are required before any non-local deployment; this phase does not deploy the application. The JWT signing key is generated once under ignored `PRIVATE_ROOT/auth/jwt.key`, using exclusive creation and a restrictive file mode; it survives backend recreation. Native execution can instead supply a random `JWT_SECRET` of at least 32 bytes; Compose uses the private key file. Never print, commit or copy this key into source configuration. Deleting/replacing the key invalidates all signed tokens. Protect the entire private storage root and database backups using operating-system permissions; Windows ACLs must also be managed by the operator.
+
+Bootstrap only your intended administrator after registering it:
+
+```powershell
+docker compose exec -T backend python -m app.manage_users YOUR_REGISTERED_EMAIL --bootstrap-administrator
+```
+
+The command refuses to run if an active administrator already exists and revokes the promoted account's old sessions. Further role assignments use the authenticated administrator endpoint. The implementation does not automatically promote the verification account.
+
+## Evidence and integrity
+
+Evidence is sent as a raw binary request body with bounded filename/provenance query fields. Authentication and case authorization occur before consuming the body. Size enforcement checks declared and actual received bytes, including requests without Content-Length; default limit is 20,000,000 bytes, configurable up to 100,000,000. JSON requests are capped at 64 KiB. Uvicorn access logging is disabled to keep private query metadata out of logs; any future reverse proxy must also avoid logging private query strings/bodies/cookies.
+
+PDF parsing rejects invalid/encrypted/empty documents and enforces the configured page cap. PNG/JPEG checks match extension, detected format, full decoding and a 40-million-pixel cap. MP4 checks brand/signature, container streams, allowed video codec, resolution (up to 3840×2160) and duration (default 3,600 seconds), then performs a bounded decode. FFmpeg/ffprobe run without a shell, with local-file protocols only, external data references disabled and per-process timeouts (default 20 seconds). Very complex or long videos can fail validation under these limits. This validates uploaded media; it does not perform Phase 4/5 OCR, NLP or visual analysis.
+
+Original bytes are never transformed. SHA-256 content addressing and atomic create prevent overwriting originals. PostgreSQL records case, original filename, detected MIME, size, hash, source/provenance, capture date, uploader and timestamps. Download rechecks case access and original hash, records an audit event, and serves as an attachment with `nosniff` and a restrictive CSP. Browser upload/download checks independently compare SHA-256. Duplicate content in one case returns 409; the same original may be referenced by another independently authorized case without exposing that fact.
+
+File storage and PostgreSQL cannot share one atomic transaction. A database failure after original preservation may leave a private unreferenced blob; the API must never return success before the database commit. No automatic garbage collector deletes such files. Audit logs are application-append-only; they are not a tamper-proof external ledger, and a privileged database operator can modify them. Denied case IDs return generic 404 without exposing case metadata. Detailed case titles, passwords, evidence contents and raw tokens are omitted from audits.
+
+## Limits and references
+
+No email verification, password reset/change workflow, MFA, antivirus/CDR, external audit signing, shared multi-worker rate limiter, storage quotas or production TLS deployment is claimed. Format validation does not establish evidence authenticity or absence of malware; authorized originals are downloaded as attachments for controlled review. Do not expose this local academic instance to the internet without a separate deployment/security review.
+
+Implementation references: [Python scrypt](https://docs.python.org/3/library/hashlib.html#hashlib.scrypt), [PyJWT validation API](https://pyjwt.readthedocs.io/en/stable/api.html), [FFprobe](https://ffmpeg.org/ffprobe.html), [FFmpeg protocol allowlists](https://ffmpeg.org/ffmpeg-protocols.html).

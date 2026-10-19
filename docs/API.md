@@ -28,4 +28,33 @@ Search returns 503 when model/index dependencies are unavailable, 422 for invali
 
 Judgment search groups a bounded set of retrieved passages by document and returns the best matching passage per distinct judgment. Each distance belongs to that passage; it is not an aggregate document score. The API returns up to the requested number of distinct judgments, preserving vector rank and checking SQL/hash/revision provenance.
 
-Ingestion, source registration, evidence preservation and verified provision imports are CLI-only trusted local operator functions. They will need authenticated role/case checks before becoming HTTP workflows in Phase 3.
+Corpus ingestion, source registration and verified provision imports remain trusted local operator functions. Private evidence preservation now uses the authorized Phase 3 routes below.
+
+## Phase 3 private workspace API
+
+Readiness also accepts `0003_private_workspace`. Browser requests use the same-origin Next.js `/api/backend/{path}` proxy, mapping to FastAPI `/api/v1/{path}`. Get `/auth/csrf` before registration/login and send its readable `legal_csrf` cookie value as `X-CSRF-Token` on mutations. Cookies are sent automatically; JWTs are HttpOnly and never returned in JSON. See [SECURITY.md](SECURITY.md) for roles, expiry, CSRF, archive and public-access policy.
+
+| Method and path after `/api/v1` | Behavior |
+| --- | --- |
+| GET /auth/csrf | Issue/preserve a readable CSRF cookie; no authentication required |
+| POST /auth/register | JSON email/display_name/password; fixed legal_researcher role; 201, no automatic login |
+| POST /auth/login | JSON email/password; issue cookie access/refresh JWTs; return sanitized user and expiry |
+| GET /auth/me | Current authenticated user, never a password hash or JWT |
+| POST /auth/refresh | Rotate refresh JWT and CSRF cookie; retain absolute session expiry |
+| POST /auth/logout | Revoke session and clear cookies, including when access has expired |
+| GET /workspace/settings | Authenticated upload format/size/video limits |
+| POST /cases | JSON title, description, jurisdiction, optional opened_on/incident_on; owner assigned from session; unique UUID/reference; 201 |
+| GET /cases | Authorized cases only; literal q, active/archived status, limit 1–100, offset and actual total |
+| GET /cases/{case_id} | Authorized case metadata and can_write/can_manage capabilities; audited read |
+| PATCH /cases/{case_id} | Update supplied title/description/jurisdiction/opened_on/incident_on on an active writable case |
+| POST /cases/{case_id}/archive | Owner/admin marks read-only; preserves metadata and originals |
+| GET, POST /cases/{case_id}/members | Owner/admin lists or grants membership to a registered email |
+| DELETE /cases/{case_id}/members/{user_id} | Owner/admin revokes membership; never deletes the user/case/evidence |
+| GET /cases/{case_id}/evidence | Authorized paginated metadata and actual total |
+| POST /cases/{case_id}/evidence | Raw binary request body; required query filename and provenance, optional ISO captured_on; validated immutable original; 201 |
+| GET /cases/{case_id}/evidence/{evidence_id} | Authorized metadata; no storage key |
+| GET /cases/{case_id}/evidence/{evidence_id}/download | Recheck case access/hash; attachment, no-store, X-Content-SHA256; audited download |
+| GET /cases/{case_id}/audit | Owner/admin recent case audit events; limit/offset |
+| PATCH /admin/users/{user_id}/role | Administrator-only role change; revokes target sessions; self changes disabled |
+
+Missing/invalid authentication returns 401; missing/incorrect CSRF or forbidden role returns 403; inaccessible cases/evidence return generic 404; archived writes, duplicate originals or integrity failures return 409; actual oversized bodies return 413; field/format failures return sanitized 422; throttling returns 429. Storage failures return sanitized 503. Validation errors omit submitted inputs, including passwords. No case/evidence deletion or static storage route exists. Use the upload body directly (`fetch(url, {method: 'POST', body: file, headers: {'X-CSRF-Token': csrf}})`); this endpoint does not parse multipart forms.

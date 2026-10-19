@@ -14,7 +14,7 @@ assert json.loads(get("http://127.0.0.1:8000/api/v1/health/live"))["status"] == 
 assert json.loads(get("http://127.0.0.1:8000/api/v1/health/ready"))["database"] == "connected"
 assert json.loads(get("http://127.0.0.1:3000/api/system"))["database"] == "connected"
 html = get("http://127.0.0.1:3000")
-assert "No case data is available yet" in html
+assert "Open your case workspace" in html
 assets = set(re.findall(r'(?:src|href)="([^" ]+\.(?:css|js)(?:\?[^" ]*)?)"', html))
 assert assets, "Expected built CSS and JavaScript"
 for asset in assets:

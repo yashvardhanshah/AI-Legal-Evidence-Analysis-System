@@ -1,6 +1,6 @@
 # AI Legal Evidence Analysis System
 
-Academic investigation and legal research decision support for India. Phase 2 adds legal data tables, private originals, real judgment ingestion and persistent local semantic retrieval to the working Phase 1 stack. Authentication and authorized case workflows remain Phase 3 work. Keep services on loopback; no private case or evidence HTTP routes are enabled.
+Academic investigation and legal research decision support for India. Phases 1 and 2 provide the application stack, 50 licensed public judgments and 3,834 persisted embeddings. Phase 3 adds cookie JWT authentication, case ownership/sharing, role checks, private evidence upload/download and audit logs. Keep services on loopback. See [the access policy](docs/SECURITY.md) before using private evidence.
 
 ## Requirements
 
@@ -34,9 +34,10 @@ docker compose down
 docker compose up -d db
 python -m venv backend/.venv
 backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.lock
+backend/.venv/Scripts/python.exe -m pip install -r backend/requirements-phase3.lock
 Set-Location backend
 .venv/Scripts/alembic.exe upgrade head
-.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
 In another terminal:
@@ -126,4 +127,29 @@ Results contain actual SQL passages, source URLs, available dates and cosine **d
 
 Ignored `.local/phase2` is mounted only into the backend as `/private_data`, with `originals/`, `metadata/`, `receipts/`, `plans/`, `models/<revision>/` and `chroma/`. Evidence originals and derived files use separate namespaces. Nothing is served as static files. Windows ACLs inherit the development workspace; review host access before introducing confidential evidence.
 
-`import-evidence --case-id <existing-id> --file <authorized-file> --provenance <description>` is an operator-only foundation; no cases are seeded. Validated PDF/PNG/JPEG are supported; MP4 waits for real container validation. `import-provision --manifest <reviewed-manifest>` requires verified authoritative source rights, an exact PDF page passage, document SHA-256, explicit act/version/section and reviewer. Missing statutes stay empty; no sections or crosswalks are invented. Neither command bypasses the source/format gates.
+Private evidence should use the authenticated case upload page/API. The retained local-operator `import-evidence --case-id <existing-id> --uploader-id <active-user-id> --file <authorized-file> --provenance <description>` also enforces the supplied user's case/role access and records that uploader; it requires trusted database operator access. PDF/PNG/JPG/JPEG/MP4 validation is shared with HTTP uploads. `import-provision --manifest <reviewed-manifest>` requires verified authoritative source rights, an exact PDF page passage, document SHA-256, explicit act/version/section and reviewer. Missing statutes stay empty; no sections or crosswalks are invented. Neither command bypasses the source/format gates.
+
+## Phase 3 workspace and verification
+
+Open http://localhost:3000/register, create your account, then log in at http://localhost:3000/login. Create a case at `/cases/new`, open its detail page, and upload a genuine authorized original with provenance. Uploaded/downloaded SHA-256 values are compared in the browser; case sharing and audit events are available to the owner. New registrations cannot choose privileged roles. See [SECURITY.md](docs/SECURITY.md) for first-administrator bootstrap and the exact access matrix.
+
+For the existing installation (retain `.env`, the volume and `.local/phase2`):
+
+```powershell
+docker compose build backend frontend
+docker compose up --no-build --wait --wait-timeout 180
+docker compose exec -T backend alembic current
+docker compose exec -T backend alembic check
+docker compose exec -T backend python -m pip check
+docker compose exec -T -e RUN_DB_TESTS=1 -e RUN_CORPUS_TESTS=1 backend python -m pytest -q -p no:cacheprovider
+backend/.venv/Scripts/python.exe scripts/smoke.py
+```
+
+Native MP4 validation additionally requires `ffmpeg` and `ffprobe` on PATH; Compose installs them. The JWT key, evidence originals and opt-in flow receipt live under the existing ignored private mount. The following operator command creates an explicitly labeled verification account/case and uploads an unchanged copy of one already ingested CC BY 4.0 judgment through the real Next.js proxy. It saves a private receipt, so reruns use the second command instead of creating more records:
+
+```powershell
+docker compose exec -T backend python -m app.verify_phase3
+docker compose exec -T backend python -m app.verify_phase3 --verify-existing
+```
+
+Both flows log out before returning. These are genuine public-source verification copies, not fabricated private case evidence. No datasets or model weights are downloaded again. Phase 3 must be reviewed before any commit/push or Phase 4 work.

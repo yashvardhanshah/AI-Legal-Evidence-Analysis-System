@@ -34,8 +34,8 @@ def test_cors():
     assert "access-control-allow-origin" not in response.headers
 
 
-def test_no_domain_endpoints_yet():
-    assert client.get("/api/v1/cases").status_code == 404
+def test_private_case_endpoints_require_authentication():
+    assert client.get("/api/v1/cases").status_code == 401
 
 
 def test_real_database_when_enabled():
