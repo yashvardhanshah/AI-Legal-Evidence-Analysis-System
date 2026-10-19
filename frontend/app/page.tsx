@@ -49,7 +49,7 @@ export default function Home() {
           </div>
           <p className="check-note">{checkedAt ? `Last checked at ${checkedAt}.` : "Checking application readiness."} {!loading && !connected && "Start the backend and apply the database migration, then refresh."}</p>
         </section>
-        <div className="lower-grid"><section className="panel"><span className="eyebrow">YOUR WORKSPACE</span><h2>Ready for the next phase</h2><div className="empty-symbol" aria-hidden="true">▱</div><h3>No case data is available yet</h3><p>Case records, evidence counts and activity will appear after the database schema and authorized case workflows are implemented.</p><span className="outline-tag">No evidence or datasets imported</span></section>
+        <div className="lower-grid"><section className="panel"><span className="eyebrow">YOUR WORKSPACE</span><h2>Ready for the next phase</h2><div className="empty-symbol" aria-hidden="true">▱</div><h3>No case data is available yet</h3><p>Case records, evidence counts and activity will appear after the database schema and authorized case workflows are implemented.</p><span className="outline-tag">Private evidence uploads are not enabled</span></section>
         <section className="panel roadmap"><span className="eyebrow">WHAT COMES NEXT</span><h2>A measured path forward</h2>{modules.map(([phase, title, text]) => <div className="roadmap-row" key={phase}><span>{phase}</span><div><h3>{title}</h3><p>{text}</p></div></div>)}</section></div>
         <footer><span>AI Legal Evidence Analysis System</span><span>Decision support · Qualified human review required</span></footer>
       </main>

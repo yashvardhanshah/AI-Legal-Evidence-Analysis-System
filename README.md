@@ -1,6 +1,6 @@
 # AI Legal Evidence Analysis System
 
-Academic investigation and legal research decision support for India. Phase 1 provides a Next.js interface, FastAPI API, PostgreSQL foundation migration and local Docker Compose stack. Authentication, cases, evidence, AI analysis and legal retrieval are **not implemented yet**. Do not load private evidence or expose these services publicly.
+Academic investigation and legal research decision support for India. Phase 2 adds legal data tables, private originals, real judgment ingestion and persistent local semantic retrieval to the working Phase 1 stack. Authentication and authorized case workflows remain Phase 3 work. Keep services on loopback; no private case or evidence HTTP routes are enabled.
 
 ## Requirements
 
@@ -64,6 +64,8 @@ Initial Docker registry pulls failed during verification. An isolated PostgreSQL
 
 This fallback cluster is local runtime state and is not portable repository content. New clones should use the documented Compose setup.
 
+The native fallback cluster retains only the earlier Phase 1 verification state. The current Phase 2 corpus lives in the Compose PostgreSQL volume. Use that database for Phase 2; switching databases does not transfer provenance rows or their vector IDs.
+
 If normal pulls fail with Docker Hub connection EOF errors, the standard image was successfully fetched through BuildKit with this command before retrying Compose:
 
 ```powershell
@@ -75,3 +77,53 @@ If normal pulls fail with Docker Hub connection EOF errors, the standard image w
 Origin: https://github.com/yashvardhanshah/AI-Legal-Evidence-Analysis-System.git, branch `main`. GitHub had no refs at the initial read on 2026-10-19. Phase 1 has been reviewed by the project owner. Every commit and push requires explicit user approval; recheck remote refs before pushing. `.gitignore` is a safeguard, not a replacement for reviewing every staged file. Keep original evidence, datasets, models, credentials and database backups outside Git.
 
 Implementation references: [Next.js installation](https://nextjs.org/docs/app/getting-started/installation), [FastAPI containers](https://fastapi.tiangolo.com/deployment/docker/), [Compose service dependencies](https://docs.docker.com/compose/how-tos/startup-order/).
+
+## Phase 2 operator workflow
+
+Use Docker for CPU inference, Chroma and Tesseract; allow up to 4 GB of disk including images. All downloads are explicit operator commands after approval. Model loads and health checks never download files. No paid service is required.
+
+The first CPU dependency image is about **1.79 GB**; build/export/unpack can be silent for several minutes. Backend and migrations share one image. If the default exporter is unusually slow, this locally verified sequence reuses dependency caches, exports without compression, and never pushes an image:
+
+```powershell
+docker buildx build --output 'type=image,name=legal-evidence-backend,compression=uncompressed,push=false,store=true' ./backend
+docker compose build frontend
+docker compose up --no-build --wait --wait-timeout 180
+```
+
+The exact tested Linux CPU dependency snapshot is `backend/requirements-ml.lock`; native development instructions above install core dependencies only. Use Docker for the full ML/OCR test suite. A native Windows fallback was assessed through package metadata only and was not installed.
+
+```powershell
+docker compose exec -T backend python -m app.cli register-sources
+docker compose exec -T backend python -m app.cli plan-supreme --year 1951 --limit 50 --output /private_data/plans/supreme-1951-50.json
+$batch = Get-Content .local/phase2/plans/supreme-1951-50.json -Raw | ConvertFrom-Json
+$batch.total_bytes
+$batch.documents.Count
+$manifestHash = (Get-FileHash .local/phase2/plans/supreme-1951-50.json -Algorithm SHA256).Hash.ToLower()
+# Review the manifest and obtain approval for dataset/model downloads first.
+docker compose exec -T backend python -m app.cli download-model --approved-bytes 92000000
+docker compose exec -T backend python -m app.cli ingest --manifest /private_data/plans/supreme-1951-50.json --approved-sha256 $manifestHash --max-total-bytes 45000000
+docker compose exec -T backend python -m app.cli index
+docker compose exec -T backend python -m app.cli stats
+docker compose exec -T backend python -m app.cli search 'fundamental rights and equality before the law' --limit 3
+```
+
+The initial approved plan selects the first 50 English PDF keys with matching metadata in the publisher's `year=1951` partition: **44,893,069 bytes** including metadata. Some identifiers begin with 1952; partition year is not treated as a judgment date. Initial plan SHA-256: `58fd46d2e7a7188cd0b0eedc8bf29fab5e1f6d9f281b1282ee4a7b7a9dbbdbd0`. Regenerating a plan changes its timestamp/hash; use the new actual hash after review. See SOURCES.md for rights and attribution.
+
+Rerunning ingestion skips unchanged records. Download receipts allow retries without redownloading verified originals. For a failed/interrupted job, add `--retry-job <job-id>` with the same manifest and approval hash. A changed ETag requires version review; originals are never overwritten. PostgreSQL advisory locks serialize operator writers. Indexing upserts deterministic passage IDs and resumes missing embeddings without duplicating vectors.
+
+```powershell
+$query = @{query='fundamental rights and equality before the law'; limit=3} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/search/judgments -ContentType application/json -Body $query
+Invoke-RestMethod http://localhost:8000/api/v1/dataset-sources
+Invoke-RestMethod http://localhost:8000/api/v1/ingestion-jobs
+Invoke-RestMethod 'http://localhost:8000/api/v1/judgments?limit=5'
+Invoke-RestMethod 'http://localhost:8000/api/v1/legal-provisions?q=equality'
+docker compose exec -T -e RUN_DB_TESTS=1 -e RUN_CORPUS_TESTS=1 backend python -m pytest -q -p no:cacheprovider
+backend/.venv/Scripts/python.exe scripts/smoke.py
+```
+
+Results contain actual SQL passages, source URLs, available dates and cosine **distance** (lower is closer). They do not certify legal applicability or ranking quality. The historical English sample is not representative of modern criminal law.
+
+Ignored `.local/phase2` is mounted only into the backend as `/private_data`, with `originals/`, `metadata/`, `receipts/`, `plans/`, `models/<revision>/` and `chroma/`. Evidence originals and derived files use separate namespaces. Nothing is served as static files. Windows ACLs inherit the development workspace; review host access before introducing confidential evidence.
+
+`import-evidence --case-id <existing-id> --file <authorized-file> --provenance <description>` is an operator-only foundation; no cases are seeded. Validated PDF/PNG/JPEG are supported; MP4 waits for real container validation. `import-provision --manifest <reviewed-manifest>` requires verified authoritative source rights, an exact PDF page passage, document SHA-256, explicit act/version/section and reviewer. Missing statutes stay empty; no sections or crosswalks are invented. Neither command bypasses the source/format gates.

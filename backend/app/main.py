@@ -9,15 +9,23 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.config import get_settings
 from app.database import get_engine
 from app.models import SystemMetadata
+from app.library_api import router
 
 logger = logging.getLogger(__name__)
-app = FastAPI(title="AI Legal Evidence Analysis System", version="0.1.0")
+app = FastAPI(title="AI Legal Evidence Analysis System", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+app.include_router(router)
+
+
+@app.exception_handler(SQLAlchemyError)
+async def database_error(request, exc):
+    logger.warning("Database request failed (%s)", type(exc).__name__)
+    return JSONResponse(status_code=503, content={"detail": "Database service unavailable"})
 
 
 @app.get("/api/v1/health/live")
@@ -34,7 +42,7 @@ def ready():
             phase = connection.execute(
                 select(SystemMetadata.value).where(SystemMetadata.key == "development_phase")
             ).scalar_one()
-            if revision != "0001_foundation" or phase != "1":
+            if revision not in {"0001_foundation", "0002_legal_data"} or phase != "1":
                 return JSONResponse(status_code=503, content={"status": "unavailable", "database": "schema_mismatch"})
     except SQLAlchemyError as exc:
         # Do not expose connection strings or raw driver messages.

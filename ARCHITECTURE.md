@@ -15,4 +15,15 @@ Browser :3000
 
 Compose binds published ports to loopback. PostgreSQL data lives in a named volume. Application containers run as non-root users. There are no uploads, public file routes, domain records or credentials seeded in Phase 1. The `.env` is deliberately excluded from image build contexts.
 
-Future boundaries: authenticated API with role and case authorization; immutable original files in private object/local storage; derived artifacts stored separately; audited background jobs through Celery/Redis; Chroma passage vectors referencing PostgreSQL rows; provider-configurable source-grounded LLM workflows. No models, dataset downloads or paid calls occur in Phase 1.
+Phase 1 performed no model downloads, dataset ingestion or paid calls. Phase 2 below implements private originals and persistent Chroma passage vectors referencing PostgreSQL rows. Authentication, role/case authorization, Celery/Redis orchestration and source-grounded LLM/report workflows remain later-phase boundaries.
+
+
+## Phase 2 public legal infrastructure
+
+Reviewed publisher/license -> bounded approval-hashed manifest -> conditional HTTPS PDF/JSON acquisition -> SHA-256 originals/receipts -> extraction or necessary local OCR -> tokenizer-aware page chunks in PostgreSQL -> offline CPU embeddings -> persistent cosine Chroma -> SQL provenance join -> read-only public library API.
+
+`sources.py` handles allowlisted public access and metadata; `storage.py` handles immutable files and safe paths; `documents.py` extracts and chunks; `ingestion.py` persists source versions, passages, jobs and audit events; `vectors.py` isolates explicit model acquisition, offline inference and index reconciliation; `library_api.py` exposes the public corpus; `cli.py` is the trusted operator entry point. Ingestion is never triggered from HTTP.
+
+The original database volume is retained. Only the backend mounts ignored `.local/phase2` as `/private_data`. Originals, model snapshots, receipts and Chroma survive container restarts. Cases and evidence have no routes before Phase 3 authorization. Windows ACLs inherit workspace access; review deployment host ACLs before confidential evidence. Celery/Redis remain deferred: bounded resumable jobs run outside request handlers as operator commands, with states persisted in SQL and writes serialized by advisory lock.
+
+Chroma upserts precede SQL index markers; a failed batch can repeat its deterministic IDs. Queries suppress entries without matching committed SQL records and revision/hash. No destructive reset is used.

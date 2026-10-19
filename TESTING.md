@@ -63,3 +63,33 @@ The requested Docker application remains running for local review at http://loca
 ## Pre-commit security review
 
 Following the owner's Phase 1 review, an offline pattern-based secret scan of all 39 Git-eligible files found no secrets. Checks covered private keys, common provider tokens, JWTs, credential URLs, literal credential assignments and the actual generated local database password. Intentionally inert test credentials and the sanitized `.env.example` placeholder were reviewed as exceptions. All 32 ignore-rule probes passed for credentials, environment files, evidence uploads, datasets, local databases, models and generated files. Generic upload, credential, download and cache exclusions were strengthened. This was a local custom scan; Gitleaks and TruffleHog were not installed. Exact staged blobs are rescanned before the commit.
+
+
+## Phase 2 final verification — 2026-10-19
+
+Final Docker suite: **29 passed, 0 failed, 0 skipped**. Run with:
+
+```powershell
+docker compose exec -T -e RUN_DB_TESTS=1 -e RUN_CORPUS_TESTS=1 backend python -m pytest -q -p no:cacheprovider
+docker compose exec -T backend alembic check
+docker compose exec -T backend python -m pip check
+backend/.venv/Scripts/python.exe scripts/smoke.py
+```
+
+Actual corpus: 50 unique real Supreme Court judgments, 1,274 pages, 3,834 passages and 3,834 persisted embeddings. Initial ingestion had no failed or duplicate documents. Reindexing added zero vectors; the existing count stayed 3,834. A clean PostgreSQL restart preserved the corpus and Phase 1 marker. A separate Python process reopened Chroma and confirmed the persisted count. SQL joins verified actual source excerpts and source URLs, with distinct judgments returned in final semantic search.
+
+All corpus documents used real embedded PDF text. Actual Tesseract 5.5.0 fallback was additionally tested using a rasterized derivative of a genuinely acquired source page. Migration tests use an isolated schema in a rolled-back transaction; failure/retry tests likewise roll back their job fixtures. No synthetic legal records or private evidence are seeded. Core checks initially passed 22 tests with 7 corpus checks waiting for data/model availability; all 29 passed once genuine ingestion/indexing completed.
+
+Windows storage testing first found read-only temporary hard links could not be removed. The implementation now removes the temporary link before marking the preserved original read-only; reruns pass. The initial live search returned overlapping chunks from one case; final retrieval groups the best passage per judgment and a regression assertion verifies distinct IDs. No source text or vector values were fabricated to change those results.
+
+Windows and Linux frontend builds/TypeScript, full Docker health, Alembic no-drift, pip consistency and real HTTP checks (including all 8 frontend assets) passed. The layout is unchanged; only a stale no-datasets claim was corrected. Two non-failing warnings remain: Starlette's httpx TestClient adapter and Sentence Transformers' legacy dimension-method name. No visual browser QA or labeled retrieval-quality evaluation was performed.
+
+All originals/model/cache/vector files stay under ignored private runtime storage. A working-tree scan of all Git-eligible files checked common key/token/private-key patterns, credential URLs, literal credentials and the actual local database password; no unreviewed secrets were found. All 32 ignore probes passed. One deliberately invalid credential URL in a URL-rejection unit test is explicitly reviewed as a test fixture, never used for network access. No dedicated Gitleaks/TruffleHog scan is claimed.
+
+See [the Phase 2 report](docs/PHASE2_REPORT.md) for measured search results, exact source links, files changed, storage sizes, limitations and startup commands. India Code statutory text remains unimported pending access/rights review; its endpoint correctly returns an empty collection. Case/evidence tables remain empty and inaccessible over HTTP until Phase 3 authorization exists.
+
+## Approved Phase 2 pre-commit verification — 2026-10-20
+
+The full Docker suite passed again: **29 passed, 0 failed, 0 skipped**, with the same two non-failing deprecation warnings (137.94 seconds). Alembic reported no new upgrade operations and pip reported no broken requirements. Windows frontend TypeScript and production build passed; real HTTP smoke checks passed for liveness, database readiness, frontend proxy, dashboard HTML and all 8 built assets.
+
+Reviewed all 31 staged source/configuration/test/documentation paths. The exact staged-blob custom secret scan found no secrets; all 32 ignore probes passed. PDFs, downloaded datasets, Chroma data, model weights, private environment files and local runtime artifacts are excluded. The sanitized `.env.example` remains intentionally tracked. Branch `main` and the expected GitHub origin were verified, with remote `main` matching the Phase 1 base before the approved commit. Phase 3 remains unauthorized.

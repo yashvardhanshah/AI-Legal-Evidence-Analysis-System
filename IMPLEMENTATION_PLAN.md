@@ -4,8 +4,8 @@ Each phase requires implementation, relevant tests, honest verification results,
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 1 | Repository hygiene, Next.js shell, FastAPI, PostgreSQL foundation, migration, Docker, health integration | Implemented and verified natively and in Docker; awaiting user review |
-| 2 | Domain schema, evidence storage, reviewed public sources, Chroma indexing | Awaiting approval |
+| 1 | Repository hygiene, Next.js shell, FastAPI, PostgreSQL foundation, migration, Docker, health integration | Reviewed, committed and pushed as c571b3f |
+| 2 | Domain schema, evidence storage, reviewed public sources, Chroma indexing | Judgment pipeline implemented and verified: 50 documents / 3,834 vectors / 29 tests passed; statute acquisition gated; awaiting owner review |
 | 3 | Authentication, roles, case-level access, case CRUD, secure uploads | Planned |
 | 4 | Real OCR, NLP, source passages, reviewed corrections | Planned |
 | 5 | Licensed and validated image/video processing | Planned |
@@ -13,4 +13,4 @@ Each phase requires implementation, relevant tests, honest verification results,
 | 7 | Grounded analysis, human review and versioned PDF reports | Planned |
 | 8 | End-to-end validation, evaluation, security and deployment preparation | Planned |
 
-Phase 1 intentionally creates only installation metadata. Full case/evidence schema and data ingestion belong to Phase 2. Celery, Redis and Chroma are planned with the pipelines that use them; no idle services or advertised AI functions are included now.
+Phase 2 uses additive migrations and preserves the Phase 1 installation state. Its bounded data, pinned model and CPU dependency downloads were explicitly approved. Chroma is a persistent embedded library. Cases/evidence are not seeded, and their APIs await Phase 3 authorization. Celery/Redis remain later-phase work. Stop after Phase 2 for review; no commit, push or Phase 3 work is authorized.
