@@ -1,5 +1,7 @@
 # Database schema
 
+Phase 6 additive `0006_legal_research` adds `statute_versions`, `provision_passages`, `research_runs`, `research_inputs`, `research_results`, and append-only `research_reviews`. Existing legal provisions, processing jobs, model registry, source and evidence tables are reused. All new references use restrictive foreign keys; no old column or row is rewritten. Separate statute passages bind exact normalized PDF page offsets to a reviewed version; research results bind actual judgment/statute passage IDs to retained input windows and source snapshots. Version/attempt uniqueness and source-choice checks are enforced in PostgreSQL.
+
 Phase 5 additive revision `0005_visual_analysis` adds three tables (`visual_analyses`, `visual_frames`, `visual_detections`) and an active-visual-job/evidence partial unique index, reusing model/job/artifact tables. It does not rewrite existing evidence, OCR/NLP results or corpus data. Source/model hashes, dimensions, exact video presentation timestamps, source and annotated artifact references, raw-output indices, bounded pixel boxes and scores retain visual provenance. See [PHASE5_DESIGN.md](docs/PHASE5_DESIGN.md).
 
 Phase 4 extends the schema with additive `0004_document_analysis`: four analysis/model/page/entity tables and nullable job lease/evidence/requester fields, bringing the total to eighteen tables without dropping prior data. See [the Phase 4 schema and job design](docs/PHASE4_DESIGN.md). Earlier phase descriptions below remain historical foundations.

@@ -346,3 +346,87 @@ class VisualDetection(Base):
     x2: Mapped[float] = mapped_column(Float)
     y2: Mapped[float] = mapped_column(Float)
     provenance: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class StatuteVersion(Timestamped, Base):
+    __tablename__ = 'statute_versions'
+    __table_args__ = (UniqueConstraint('source_id','act_identifier','version',name='uq_statute_version'),)
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    source_id: Mapped[UUID] = mapped_column(ForeignKey('dataset_sources.id',ondelete='RESTRICT'))
+    act_identifier: Mapped[str] = mapped_column(String(255))
+    version: Mapped[str] = mapped_column(String(255))
+    source_url: Mapped[str] = mapped_column(Text)
+    storage_key: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64))
+    publication_on: Mapped[date] = mapped_column(Date)
+    consolidated_on: Mapped[date] = mapped_column(Date)
+    metadata_record: Mapped[dict] = mapped_column(JSONB)
+
+
+class ProvisionPassage(Base):
+    __tablename__ = 'provision_passages'
+    __table_args__ = (UniqueConstraint('provision_id','ordinal',name='uq_provision_passage'),
+        CheckConstraint('page_number > 0 AND char_start >= 0 AND char_end > char_start',name='ck_statute_span'))
+    id: Mapped[UUID] = mapped_column(Uuid,primary_key=True,default=uuid4)
+    version_id: Mapped[UUID] = mapped_column(ForeignKey('statute_versions.id',ondelete='RESTRICT'))
+    provision_id: Mapped[UUID] = mapped_column(ForeignKey('legal_provisions.id',ondelete='RESTRICT'))
+    ordinal: Mapped[int] = mapped_column(Integer)
+    page_number: Mapped[int] = mapped_column(Integer)
+    char_start: Mapped[int] = mapped_column(Integer)
+    char_end: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64))
+    vector_id: Mapped[str | None] = mapped_column(String(100),unique=True)
+    embedding_revision: Mapped[str | None] = mapped_column(String(100))
+
+
+class ResearchRun(Timestamped, Base):
+    __tablename__ = 'research_runs'
+    __table_args__ = (UniqueConstraint('job_id','attempt',name='uq_research_attempt'),
+        CheckConstraint("status IN ('processing','completed','failed','interrupted')",name='ck_research_status'))
+    id: Mapped[UUID] = mapped_column(Uuid,primary_key=True,default=uuid4)
+    case_id: Mapped[UUID] = mapped_column(ForeignKey('cases.id',ondelete='RESTRICT'),index=True)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey('processing_jobs.id',ondelete='RESTRICT'),index=True)
+    attempt: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20))
+    outcome: Mapped[str | None] = mapped_column(String(50))
+    provenance: Mapped[dict] = mapped_column(JSONB,default=dict)
+    limitations: Mapped[list] = mapped_column(JSONB,default=list)
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ResearchInput(Base):
+    __tablename__ = 'research_inputs'
+    id: Mapped[UUID] = mapped_column(Uuid,primary_key=True,default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(ForeignKey('research_runs.id',ondelete='RESTRICT'),index=True)
+    evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey('evidence.id',ondelete='RESTRICT'))
+    page_id: Mapped[UUID | None] = mapped_column(ForeignKey('analysis_pages.id',ondelete='RESTRICT'))
+    text: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64))
+    query: Mapped[str] = mapped_column(Text)
+    provenance: Mapped[dict] = mapped_column(JSONB)
+
+
+class ResearchResult(Base):
+    __tablename__ = 'research_results'
+    __table_args__ = (CheckConstraint('(judgment_passage_id IS NOT NULL) != (provision_passage_id IS NOT NULL)',name='ck_research_source'),)
+    id: Mapped[UUID] = mapped_column(Uuid,primary_key=True,default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(ForeignKey('research_runs.id',ondelete='RESTRICT'),index=True)
+    input_id: Mapped[UUID] = mapped_column(ForeignKey('research_inputs.id',ondelete='RESTRICT'))
+    judgment_passage_id: Mapped[UUID | None] = mapped_column(ForeignKey('judgment_passages.id',ondelete='RESTRICT'))
+    provision_passage_id: Mapped[UUID | None] = mapped_column(ForeignKey('provision_passages.id',ondelete='RESTRICT'))
+    rank: Mapped[int] = mapped_column(Integer)
+    distance: Mapped[float] = mapped_column(Float)
+    citation: Mapped[dict] = mapped_column(JSONB)
+
+
+class ResearchReview(Base):
+    __tablename__ = 'research_reviews'
+    __table_args__ = (CheckConstraint("disposition IN ('relevant','not_relevant','needs_verification')",name='ck_research_review'),)
+    id: Mapped[UUID] = mapped_column(Uuid,primary_key=True,default=uuid4)
+    result_id: Mapped[UUID] = mapped_column(ForeignKey('research_results.id',ondelete='RESTRICT'),index=True)
+    reviewer_id: Mapped[UUID] = mapped_column(ForeignKey('users.id',ondelete='RESTRICT'))
+    disposition: Mapped[str] = mapped_column(String(30))
+    note: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())

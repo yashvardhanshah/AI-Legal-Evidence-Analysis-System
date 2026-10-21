@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
-  if (!path.length || !["auth", "cases", "admin", "workspace"].includes(path[0]) || path.some(p => !/^[A-Za-z0-9_-]+$/.test(p))) {
+  if (!path.length || !["auth", "cases", "admin", "workspace", "research"].includes(path[0]) || path.some(p => !/^[A-Za-z0-9_-]+$/.test(p))) {
     return NextResponse.json({ detail: "Route not found" }, { status: 404 });
   }
   const mutating = !["GET", "HEAD"].includes(request.method);

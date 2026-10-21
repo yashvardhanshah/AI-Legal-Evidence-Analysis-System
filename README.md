@@ -2,6 +2,25 @@
 
 Academic investigation and legal research decision support for India. Phases 1 and 2 provide the application stack, 50 licensed public judgments and 3,834 persisted embeddings. Phase 3 adds cookie JWT authentication, case ownership/sharing, role checks, private evidence upload/download and audit logs. Keep services on loopback. See [the access policy](docs/SECURITY.md) before using private evidence.
 
+## Phase 6 local legal research
+
+Open http://localhost:3000/research for public source search. Log in and open an authorized case for exact extracted-page span selection, background research status, source passages and attributed review annotations. Initiation/review requires investigator, lawyer or administrator role plus active-case write access; other authorized readers may inspect completed research. The workflow is deterministic and local, with no external LLM/API.
+
+Official statute import is currently disabled: access/reuse rights and complete legal-version metadata are not verified. BNS/BNSS/BSA and legacy imported section counts remain zero; unavailable statutory results are explicit. Existing judgment retrieval works without invented law. See [Phase 6 design](docs/PHASE6_DESIGN.md) and [report](docs/PHASE6_REPORT.md).
+
+For this already configured workspace, preserve `.env`, private files and PostgreSQL volumes:
+
+```powershell
+docker compose up --no-build --wait --wait-timeout 180
+docker compose exec -T backend alembic current
+docker compose exec -T backend alembic check
+docker compose exec -T -e RUN_DB_TESTS=1 -e RUN_CORPUS_TESTS=1 backend python -m pytest -q -p no:cacheprovider
+docker compose exec -T backend python -m app.verify_phase6 --preservation-only
+docker compose exec -T backend python -m app.verify_phase6 --verify-existing
+```
+
+The existing-result check requires the prior explicit operator demonstration receipt; `--run-flow` is an opt-in trusted local operator command that creates a dedicated investigator verification account/membership, then uses genuine existing evidence and records real research/review results. It never changes an existing user's role or modifies original evidence. Credentials, private reports and runtime data stay ignored. The owner approved the Phase 6 commit/push subject to final verification. UI redesign and Phase 7 remain unauthorized.
+
 ## Requirements
 
 Phase 5 adds local YOLOX/OpenCV image and sampled-MP4 object candidates to the existing evidence pages. Use **Analyze Image** / **Analyze Video** and **View Results** after logging into an authorized case. Results show private source/annotated frames, elapsed presentation timestamps, source hashes and actual model scores; they do not identify people or establish criminal activity. See [Phase 5 design and access policy](docs/PHASE5_DESIGN.md) and [verification report](docs/PHASE5_REPORT.md).
@@ -15,7 +34,7 @@ docker compose exec -T -e RUN_DB_TESTS=1 -e RUN_CORPUS_TESTS=1 backend python -m
 docker compose exec -T backend python -m app.verify_phase5 --verify-existing
 ```
 
-The last command requires the opt-in visual flow receipt; `python -m app.verify_phase5` runs that authorized genuine-media flow once. `--preservation-only` verifies all pre-Phase-5 row fingerprints and current original/artifact hashes. These verification commands never acquire models or datasets. New environments require explicitly approved acquisition using the pinned helpers and provenance documented in the report. Phase 5 has been reviewed; its commit and push are approved subject to final safety verification. Phase 6 is not authorized.
+The last command requires the opt-in visual flow receipt; `python -m app.verify_phase5` runs that authorized genuine-media flow once. `--preservation-only` verifies all pre-Phase-5 row fingerprints and current original/artifact hashes. These verification commands never acquire models or datasets. New environments require explicitly approved acquisition using the pinned helpers and provenance documented in the report. Phase 5 was reviewed, committed and pushed as `37ed922`; Phase 6 is authorized as described above and stops for review.
 
 Phase 4 adds asynchronous PDF/image OCR and source-linked NLP analysis to authorized evidence pages. It reuses the installed OCR/CPU stack and the explicitly approved local NER snapshot. Details: [design, API, schema and model register](docs/PHASE4_DESIGN.md), [verification results and limitations](docs/PHASE4_REPORT.md). Preserve the existing `.env`, PostgreSQL volume and `.local/phase2`.
 

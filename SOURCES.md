@@ -1,5 +1,13 @@
 # Public legal source register
 
+## Phase 6 source/access review — 2026-10-21
+
+The [India Code landing page](https://www.indiacode.nic.in/) still announces migration. Unlike the research browser, direct HTTPS reached `https://indiacode.gov.in/` (200; JavaScript shell), its public configuration and advertised `https://indiacode.gov.in/server/api` (200). Public discovery metadata is accessible, but broad act-name searches also return section headings and subordinate rules: search hits are not accepted as verified complete Acts. Resolving the three old act handles through the new public identifier API returned HTTP errors. No authentication/access restriction was bypassed, and no statute PDF or complete Act was acquired, and no statutory text was imported or indexed.
+
+Candidate official record identifiers remain BNS 2023-45 (`123456789/20062`), BNSS 2023-46 (`123456789/20099`), and BSA 2023-47 (`123456789/20063`), with assent on 25 December 2023 according to the indexed official act register. The old copyright page timed out; a guessed new copyright-policy route returned the generic JavaScript shell, not verified policy text. The [MHA website policy](https://www.mha.gov.in/en/page/website-policy) requires permission for reproduction. The Legislative Department policy URL and Gazette landing page were inaccessible in the attempted checks. No blanket government/open-data license, present-day amendment coverage, or universal subsection commencement is assumed.
+
+**Imported statutory sections: BNS 0, BNSS 0, BSA 0; legacy IPC/CrPC/IEA 0.** Current statutory download/import remains disabled. Commencement notifications, exceptions, amendments and section-specific legal versions require authoritative review before any future import; no mapping between old/new law is inferred. Versioned ingestion requires an operator-reviewed official PDF, SHA-256, full-section exact normalized page spans, explicit verified source reuse terms, publication/consolidation dates, and per-section commencement references/applicability notes. It never downloads a file or enables a blocked source. See [PHASE6_DESIGN.md](docs/PHASE6_DESIGN.md). The existing CC BY 4.0 Supreme Court batch remains the only live legal corpus used by Phase 6.
+
 Research date: 2026-10-19. No source is assumed reusable merely because it is public. These are research copies, not court-certified evidence.
 
 | Source | Access/format and rights | Status |

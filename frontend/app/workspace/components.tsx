@@ -6,6 +6,7 @@ import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { api, ApiError, jsonApi } from "./api";
 import { EvidenceAnalysis } from "./analysis";
 import { VisualAnalysis } from "./visual";
+import { CaseResearch } from "./research";
 import "./workspace.css";
 
 type User = { id: string; email: string; display_name: string; role: string };
@@ -14,7 +15,7 @@ type Evidence = { id: string; original_filename: string; mime_type: string; byte
 const message = (error: unknown) => error instanceof Error ? error.message : "Request failed";
 
 export function Frame({ children }: { children: ReactNode }) {
-  return <main className="secure-workspace"><nav><Link href="/">System status</Link><Link href="/cases">Cases</Link><Link href="/cases/new">Create case</Link><Link href="/login">Login</Link><Link href="/register">Register</Link></nav>{children}</main>;
+  return <main className="secure-workspace"><nav><Link href="/">System status</Link><Link href="/research">Legal research</Link><Link href="/cases">Cases</Link><Link href="/cases/new">Create case</Link><Link href="/login">Login</Link><Link href="/register">Register</Link></nav>{children}</main>;
 }
 
 function useUser() {
@@ -126,6 +127,7 @@ export function CaseDetail({ id }: { id: string }) {
     {loading && <p role="status">Loading case…</p>}{row && <><p>{row.reference} · {row.status} · Owner: {row.owner_id}</p>
       {row.can_write ? <form key={row.id+row.title+row.description} onSubmit={e => { e.preventDefault(); const data = new FormData(e.currentTarget); void action(async () => { await jsonApi(`/cases/${id}`, "PATCH", caseBody(data)); await load(); setNotice("Case saved."); }); }}><CaseInputs row={row} /><button disabled={busy}>Save changes</button></form> : <section><p>{row.description || "No description supplied."}</p><p>Jurisdiction: {row.jurisdiction}</p><p>Opened: {row.opened_on}; incident: {row.incident_on || "Not supplied"}</p><p>This case is read-only for your account.</p></section>}
       {row.can_manage && row.status === "active" && <button disabled={busy} onClick={() => { if (window.confirm("Archive this case? Evidence will remain available and the case will become read-only.")) void action(async () => { await jsonApi(`/cases/${id}/archive`, "POST"); await load(); }); }}>Archive case</button>}
+      <CaseResearch caseId={id} canInitiate={row.can_write && !!user && ["administrator","investigator","lawyer"].includes(user.role)} />
       <h2>Evidence</h2><p>Originals are preserved unchanged. Downloads require current case access.</p>
       {row.can_write && <form onSubmit={e => { e.preventDefault(); const element = e.currentTarget, form = new FormData(element), file = form.get("file") as File; void action(async () => {
         if (!file?.size || (maxBytes !== null && file.size > maxBytes)) throw new Error("Select a non-empty file within the displayed size limit.");

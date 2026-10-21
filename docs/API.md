@@ -1,5 +1,9 @@
 # Phase 1 API
 
+Phase 6 adds public `GET /api/v1/research/statute-sources` and `POST /api/v1/research/search` (query/limit/kind, exact court/source/act/version, judgment year and optional statute effective date). Search returns source excerpts, IDs/hashes/offsets and cosine distances; judgment results are deduplicated. No private research job is a public ingestion job.
+
+Case-private paths under `/api/v1/cases/{case_id}`: `GET /research-inputs`, `POST`/`GET /research-jobs`, `GET /research-jobs/{job_id}`, `POST /research-jobs/{job_id}/retry`, `GET /research-runs/{run_id}`, `POST /research-runs/{run_id}/results/{result_id}/reviews`. Every path rechecks current case authorization; writes additionally require active-case write access, CSRF and investigator/lawyer/administrator role. Selected extraction spans specify evidence/page IDs and start/end offsets. Optional human input requires explicit confirmation. Identical active/completed requests reuse work; `reanalyze:true` requests a fresh version while still reusing identical active work. Results paginate, preserve input links and allow append-only attributed annotations. Partial runs return 409; inaccessible identifiers return 404; missing authentication returns 401. Public registration remains unprivileged.
+
 Phase 5 adds eight authenticated case/evidence visual command/result/artifact routes, listed in [PHASE5_DESIGN.md](PHASE5_DESIGN.md#api-and-access-policy). Readiness accepts additive head `0005_visual_analysis`; the earlier public judgment/search routes remain available under the existing policy.
 
 Phase 4 document-analysis endpoints and score/offset semantics are listed in [PHASE4_DESIGN.md](PHASE4_DESIGN.md). All are nested under existing private case/evidence paths and preserve the Phase 3 authentication policy. Readiness now accepts additive head `0004_document_analysis`.

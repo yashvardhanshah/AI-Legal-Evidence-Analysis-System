@@ -51,6 +51,8 @@ htmlcov/
 storage/
 uploads/
 evidence/
+originals/
+evidence-originals/
 derived/
 datasets/
 downloads/
@@ -60,6 +62,10 @@ artifacts/
 backups/
 pgdata/
 chroma/
+chroma-statutes/
+research-results/
+statute-imports/
+browser-profiles/
 *.db
 *.db-*
 *.sqlite*
