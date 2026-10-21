@@ -79,6 +79,10 @@ chroma/
 *.avi
 *.mov
 *.webm
+*.ogv
+*.ogg
+*.whl
+visual-test-media/
 *.wav
 *.mp3
 *.tif

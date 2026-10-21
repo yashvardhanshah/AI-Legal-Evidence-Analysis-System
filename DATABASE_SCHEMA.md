@@ -1,5 +1,7 @@
 # Database schema
 
+Phase 5 additive revision `0005_visual_analysis` adds three tables (`visual_analyses`, `visual_frames`, `visual_detections`) and an active-visual-job/evidence partial unique index, reusing model/job/artifact tables. It does not rewrite existing evidence, OCR/NLP results or corpus data. Source/model hashes, dimensions, exact video presentation timestamps, source and annotated artifact references, raw-output indices, bounded pixel boxes and scores retain visual provenance. See [PHASE5_DESIGN.md](docs/PHASE5_DESIGN.md).
+
 Phase 4 extends the schema with additive `0004_document_analysis`: four analysis/model/page/entity tables and nullable job lease/evidence/requester fields, bringing the total to eighteen tables without dropping prior data. See [the Phase 4 schema and job design](docs/PHASE4_DESIGN.md). Earlier phase descriptions below remain historical foundations.
 
 Additive revision `0002_legal_data` follows `0001_foundation`. It preserves both original tables and the `development_phase=1` row, adds `legal_data_schema=2`, and creates nine tables. No tables or existing data are dropped. Destructive downgrade is disabled; use reviewed forward migrations.

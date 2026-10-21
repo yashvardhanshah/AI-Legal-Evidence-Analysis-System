@@ -167,6 +167,7 @@ class ProcessingJob(Timestamped, Base):
         CheckConstraint("attempts >= 0 AND processed >= 0 AND total >= processed", name="ck_job_progress"),
         Index("ix_jobs_status_created", "status", "created_at"),
         Index("uq_active_evidence_analysis", "evidence_id", unique=True, postgresql_where=text("kind = 'evidence_analysis' AND status IN ('queued', 'processing')")),
+        Index("uq_active_visual_analysis", "evidence_id", unique=True, postgresql_where=text("kind = 'visual_analysis' AND status IN ('queued', 'processing')")),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     source_id: Mapped[UUID | None] = mapped_column(ForeignKey("dataset_sources.id", ondelete="RESTRICT"), index=True)
@@ -295,4 +296,53 @@ class AnalysisEntity(Base):
     char_end: Mapped[int] = mapped_column(Integer)
     extractor: Mapped[str] = mapped_column(String(30))
     score: Mapped[float | None] = mapped_column(Float)
+    provenance: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class VisualAnalysis(Timestamped, Base):
+    __tablename__ = "visual_analyses"
+    __table_args__ = (UniqueConstraint("job_id", "attempt", name="uq_visual_attempt"),
+        CheckConstraint("status IN ('processing','completed','failed','interrupted')", name="ck_visual_status"))
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey("processing_jobs.id", ondelete="RESTRICT"), index=True)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id", ondelete="RESTRICT"), index=True)
+    model_id: Mapped[UUID | None] = mapped_column(ForeignKey("analysis_models.id", ondelete="RESTRICT"))
+    attempt: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20))
+    original_sha256: Mapped[str] = mapped_column(String(64))
+    pipeline_version: Mapped[str] = mapped_column(String(100))
+    settings: Mapped[dict] = mapped_column(JSONB, default=dict)
+    media: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class VisualFrame(Base):
+    __tablename__ = "visual_frames"
+    __table_args__ = (UniqueConstraint("analysis_id", "frame_index", name="uq_visual_frame"),
+        CheckConstraint("frame_index >= 0 AND timestamp_ms >= 0 AND width > 0 AND height > 0 AND inference_ms >= 0", name="ck_visual_frame_bounds"))
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    analysis_id: Mapped[UUID] = mapped_column(ForeignKey("visual_analyses.id", ondelete="RESTRICT"), index=True)
+    frame_index: Mapped[int] = mapped_column(Integer)
+    timestamp_ms: Mapped[float] = mapped_column(Float)
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    pixel_sha256: Mapped[str] = mapped_column(String(64))
+    source_artifact_id: Mapped[UUID] = mapped_column(ForeignKey("evidence_artifacts.id", ondelete="RESTRICT"))
+    annotated_artifact_id: Mapped[UUID] = mapped_column(ForeignKey("evidence_artifacts.id", ondelete="RESTRICT"))
+    inference_ms: Mapped[float] = mapped_column(Float)
+
+
+class VisualDetection(Base):
+    __tablename__ = "visual_detections"
+    __table_args__ = (CheckConstraint("class_id >= 0 AND class_id < 80 AND confidence >= 0 AND confidence <= 1 AND x1 >= 0 AND y1 >= 0 AND x2 > x1 AND y2 > y1", name="ck_visual_detection"),)
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    frame_id: Mapped[UUID] = mapped_column(ForeignKey("visual_frames.id", ondelete="RESTRICT"), index=True)
+    class_id: Mapped[int] = mapped_column(Integer)
+    label: Mapped[str] = mapped_column(String(100))
+    confidence: Mapped[float] = mapped_column(Float)
+    x1: Mapped[float] = mapped_column(Float)
+    y1: Mapped[float] = mapped_column(Float)
+    x2: Mapped[float] = mapped_column(Float)
+    y2: Mapped[float] = mapped_column(Float)
     provenance: Mapped[dict] = mapped_column(JSONB, default=dict)

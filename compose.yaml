@@ -73,6 +73,35 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+  visual-worker:
+    image: legal-evidence-backend
+    pull_policy: never
+    command: ["python", "-m", "app.analysis_worker", "--kind", "visual_analysis"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-legal_app}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-legal_evidence}
+      PRIVATE_ROOT: /private_data
+      ANALYSIS_JOB_TIMEOUT: ${ANALYSIS_JOB_TIMEOUT:-600}
+      VISUAL_MAX_SECONDS: ${VISUAL_MAX_SECONDS:-120}
+      VISUAL_MAX_FRAMES: ${VISUAL_MAX_FRAMES:-60}
+      VISUAL_INTERVAL_MS: ${VISUAL_INTERVAL_MS:-2000}
+      VISUAL_CONFIDENCE: ${VISUAL_CONFIDENCE:-0.35}
+    volumes:
+      - ./.local/phase2/evidence-originals:/private_data/evidence-originals:ro
+      - ./.local/phase2/models/vision:/private_data/models/vision:ro
+      - ./.local/phase2/derived:/private_data/derived
+    mem_limit: 1200m
+    cpus: 2.0
+    pids_limit: 128
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.analysis_worker", "--kind", "visual_analysis", "--health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
   frontend:
     build: ./frontend
     environment:

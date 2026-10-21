@@ -15,35 +15,36 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.analysis_jobs import fail_job, now, run_analysis
 from app.config import get_settings
 from app.database import get_engine
-from app.models import EvidenceAnalysis, ProcessingJob, SystemMetadata
+from app.models import EvidenceAnalysis, VisualAnalysis, ProcessingJob, SystemMetadata
 
 HEARTBEAT = "analysis_worker_heartbeat"
 
 
-def heartbeat():
+def heartbeat(kind='evidence_analysis'):
+    key = HEARTBEAT if kind == 'evidence_analysis' else 'visual_worker_heartbeat'
     with Session(get_engine()) as db:
-        row = db.get(SystemMetadata, HEARTBEAT)
+        row = db.get(SystemMetadata, key)
         if not row:
-            db.add(SystemMetadata(key=HEARTBEAT, value=now().isoformat()))
+            db.add(SystemMetadata(key=key, value=now().isoformat()))
         else:
             row.value = now().isoformat()
         db.commit()
 
 
-def healthy():
+def healthy(kind='evidence_analysis'):
     from datetime import datetime
     try:
         with Session(get_engine()) as db:
-            row = db.get(SystemMetadata, HEARTBEAT)
+            row = db.get(SystemMetadata, HEARTBEAT if kind == 'evidence_analysis' else 'visual_worker_heartbeat')
             return bool(row and (now()-datetime.fromisoformat(row.value)).total_seconds() < 45)
     except (SQLAlchemyError, ValueError):
         # Startup/restart failures must not emit connection details into health logs.
         return False
 
 
-def claim(db, guard):
+def claim(db, guard, kind='evidence_analysis'):
     clock = now()
-    query = select(ProcessingJob).where(ProcessingJob.kind == "evidence_analysis",
+    query = select(ProcessingJob).where(ProcessingJob.kind == kind,
         or_((ProcessingJob.status == "queued") & or_(ProcessingJob.next_attempt_at.is_(None), ProcessingJob.next_attempt_at <= clock),
             (ProcessingJob.status == "processing") & (ProcessingJob.lease_expires_at < clock)))
     candidates = db.scalars(query.order_by(ProcessingJob.created_at).limit(10).with_for_update(skip_locked=True))
@@ -52,7 +53,8 @@ def claim(db, guard):
         if not guard.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": lock_key}):
             continue
         if job.status == "processing":
-            prior = db.scalar(select(EvidenceAnalysis).where(EvidenceAnalysis.job_id == job.id, EvidenceAnalysis.attempt == job.attempts))
+            record = EvidenceAnalysis if kind == 'evidence_analysis' else VisualAnalysis
+            prior = db.scalar(select(record).where(record.job_id == job.id, record.attempt == job.attempts))
             if prior and prior.status == "processing":
                 prior.status, prior.error_code, prior.finished_at = "interrupted", "worker_interrupted", clock
         if job.attempts >= job.max_attempts:
@@ -70,32 +72,35 @@ def claim(db, guard):
     return None
 
 
-def process_once():
+def process_once(kind='evidence_analysis'):
+    failure = fail_job
+    if kind == 'visual_analysis':
+        from app.visual_jobs import fail_job as failure
     # Dedicated connection holds a session advisory lock across child processing.
     with get_engine().connect().execution_options(isolation_level="AUTOCOMMIT") as guard:
         with Session(get_engine()) as db:
-            claimed = claim(db, guard)
+            claimed = claim(db, guard, kind)
         if not claimed:
             return False
         identifier, token, lock_key = claimed
         child = None
         try:
-            child = subprocess.Popen([sys.executable, "-m", "app.analysis_worker", "--execute", str(identifier), "--lease", str(token)],
+            child = subprocess.Popen([sys.executable, "-m", "app.analysis_worker", "--kind", kind, "--execute", str(identifier), "--lease", str(token)],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=os.name != "nt")
             deadline, next_heartbeat = time.monotonic()+get_settings().analysis_job_timeout, 0
             while child.poll() is None:
                 if time.monotonic() >= deadline:
                     terminate(child)
                     child.wait()
-                    fail_job(identifier, token, "job_timeout", True)
+                    failure(identifier, token, "job_timeout", True)
                     break
                 if time.monotonic() >= next_heartbeat:
-                    heartbeat()
+                    heartbeat(kind)
                     next_heartbeat = time.monotonic()+10
                 time.sleep(0.5)
             else:
                 if child.returncode != 0:
-                    fail_job(identifier, token, "worker_interrupted", True)
+                    failure(identifier, token, "worker_interrupted", True)
         finally:
             if child and child.poll() is None:
                 terminate(child)
@@ -120,18 +125,22 @@ def main():
     parser.add_argument("--health", action="store_true")
     parser.add_argument("--execute", type=UUID)
     parser.add_argument("--lease", type=UUID)
+    parser.add_argument('--kind', choices=['evidence_analysis','visual_analysis'], default='evidence_analysis')
     args = parser.parse_args()
     if args.health:
-        raise SystemExit(0 if healthy() else 1)
+        raise SystemExit(0 if healthy(args.kind) else 1)
     if args.execute:
         if not args.lease:
             parser.error("Internal execution requires a lease")
-        run_analysis(args.execute, args.lease)
+        runner = run_analysis
+        if args.kind == 'visual_analysis':
+            from app.visual_jobs import run_analysis as runner
+        runner(args.execute, args.lease)
         return
     while True:
         try:
-            heartbeat()
-            processed = process_once()
+            heartbeat(args.kind)
+            processed = process_once(args.kind)
         except Exception:
             # Database interruption never resets the queue or prints private data.
             processed = False

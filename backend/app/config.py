@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     analysis_ocr_timeout: int = Field(default=45, ge=5, le=120)
     analysis_job_timeout: int = Field(default=600, ge=30, le=1800)
     analysis_poll_seconds: int = Field(default=2, ge=1, le=30)
+    visual_max_pixels: int = Field(default=8_294_400, ge=1_000_000, le=16_000_000)
+    visual_max_seconds: int = Field(default=120, ge=1, le=600)
+    visual_max_frames: int = Field(default=60, ge=1, le=300)
+    visual_interval_ms: int = Field(default=2000, ge=100, le=10000)
+    visual_confidence: float = Field(default=0.35, ge=0.1, le=0.95)
+    visual_nms: float = Field(default=0.5, ge=0.1, le=0.9)
 
 
 @lru_cache

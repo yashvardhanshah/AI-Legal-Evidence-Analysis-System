@@ -1,5 +1,7 @@
 # Model and processing register
 
+Phase 5 adds Apache-2.0 OpenCV Zoo YOLOX-S ONNX (35,858,002 bytes), pinned official mirror revision `d4938dfc9d4ec5d098bfa33e98b3f3345a236586`, verified SHA-256 `c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063`. Real local OpenCV DNN emits only supported COCO object candidates; class indices are contiguous 0–79, scores are uncalibrated objectness × class probability, and video results are sampled frames rather than tracking. Model/source/wheel licenses, exact acquisition sizes, provenance and limitations: [PHASE5_REPORT.md](docs/PHASE5_REPORT.md). Earlier models remain unchanged.
+
 Phase 4 adds a separately approved 261,694,557-byte Apache-2.0 DistilBERT NER snapshot, versioned deterministic mention rules and real Tesseract TSV provenance. Exact revisions, hashes, licenses, byte sizes and score semantics are documented in [PHASE4_DESIGN.md](docs/PHASE4_DESIGN.md). The Phase 2 encoder and Chroma collection below are unchanged.
 
 Encoder: [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2), Apache-2.0, pinned commit `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`. The [pinned model card](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/blob/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/README.md) describes English sentence/short-paragraph encoding into 384 dimensions and a 256-word-piece context. It is general-purpose and has not been evaluated for Indian legal relevance here.

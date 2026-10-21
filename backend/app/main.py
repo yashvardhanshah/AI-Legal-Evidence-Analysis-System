@@ -14,10 +14,11 @@ from app.library_api import router
 from app.auth import router as auth_router
 from app.case_api import router as case_router
 from app.analysis_api import router as analysis_router
+from app.visual_api import router as visual_router
 from app.security_middleware import RequestSafety
 
 logger = logging.getLogger(__name__)
-app = FastAPI(title="AI Legal Evidence Analysis System", version="0.4.0")
+app = FastAPI(title="AI Legal Evidence Analysis System", version="0.5.0")
 app.add_middleware(RequestSafety)
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +31,7 @@ app.include_router(router)
 app.include_router(auth_router)
 app.include_router(case_router)
 app.include_router(analysis_router)
+app.include_router(visual_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -59,7 +61,7 @@ def ready():
             phase = connection.execute(
                 select(SystemMetadata.value).where(SystemMetadata.key == "development_phase")
             ).scalar_one()
-            if revision not in {"0001_foundation", "0002_legal_data", "0003_private_workspace", "0004_document_analysis"} or phase != "1":
+            if revision not in {"0001_foundation", "0002_legal_data", "0003_private_workspace", "0004_document_analysis", "0005_visual_analysis"} or phase != "1":
                 return JSONResponse(status_code=503, content={"status": "unavailable", "database": "schema_mismatch"})
     except SQLAlchemyError as exc:
         # Do not expose connection strings or raw driver messages.

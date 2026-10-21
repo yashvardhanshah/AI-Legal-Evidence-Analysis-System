@@ -1,5 +1,7 @@
 # Architecture
 
+Phase 5 adds an isolated `visual-worker` using the existing worker's `--kind visual_analysis` dispatch, private case-authorized `visual_api.py`, immutable `visual_jobs.py` publication and pinned local `visual_inference.py`/`visual_model.py`. Existing document worker behavior remains the default. OpenCV sequentially decodes MP4s, samples actual presentation timestamps and applies YOLOX to images/samples; private source/annotated PNGs retain source/model/frame provenance. No facial identity, re-identification, continuous tracking or crime inference is introduced. See [PHASE5_DESIGN.md](docs/PHASE5_DESIGN.md).
+
 Phase 4 adds `analysis_api.py` (case-authorized enqueue/results), `analysis_worker.py` (separate durable SQL worker and fenced child processes), `analysis_jobs.py` (attempt/provenance/publishing), `analysis_extraction.py` (embedded text and actual TSV OCR), `analysis_nlp.py` (offline NER and literal spans), and `ner_model.py` (approved acquisition/integrity). Original evidence remains immutable; derived JSON, exact page text, models and source-linked candidates are tracked separately. Chroma and existing public research routes are unchanged. See [PHASE4_DESIGN.md](docs/PHASE4_DESIGN.md).
 
 ```text

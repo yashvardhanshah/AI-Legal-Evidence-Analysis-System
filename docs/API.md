@@ -1,5 +1,7 @@
 # Phase 1 API
 
+Phase 5 adds eight authenticated case/evidence visual command/result/artifact routes, listed in [PHASE5_DESIGN.md](PHASE5_DESIGN.md#api-and-access-policy). Readiness accepts additive head `0005_visual_analysis`; the earlier public judgment/search routes remain available under the existing policy.
+
 Phase 4 document-analysis endpoints and score/offset semantics are listed in [PHASE4_DESIGN.md](PHASE4_DESIGN.md). All are nested under existing private case/evidence paths and preserve the Phase 3 authentication policy. Readiness now accepts additive head `0004_document_analysis`.
 
 Interactive OpenAPI: http://localhost:8000/docs; schema: `/openapi.json`.
