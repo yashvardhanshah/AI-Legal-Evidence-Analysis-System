@@ -31,7 +31,7 @@ export function EvidenceAnalysis({ caseId, evidenceId, mime, canWrite }: { caseI
     return () => { current = false; };
   }, [base, open, selected, pageNumber]);
 
-  if (!supported) return <p>Document OCR/NLP analysis supports PDF, PNG and JPEG. Video analysis is a later phase.</p>;
+  if (!supported) return <p>Document OCR/NLP supports PDF, PNG and JPEG. Use visual analysis below for MP4 video.</p>;
   async function trigger(reanalyze = false) {
     setBusy(true); setError("");
     try { await jsonApi(base+"/analysis", "POST", { reanalyze }); await load(); }

@@ -1,61 +1,18 @@
 "use client";
-
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-
-type Health = { status: string; database: string; migration?: string };
-const modules = [
-  ["02", "Data foundation", "Schema, private storage and verified public sources"],
-  ["03", "Case workspace", "Authentication, case access and evidence uploads"],
-  ["04–06", "Evidence intelligence", "Document processing, visual analysis and legal retrieval"],
-  ["07–08", "Review & reporting", "Source-grounded reports, evaluation and security checks"],
-];
-
-export default function Home() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [checkedAt, setCheckedAt] = useState<string | null>(null);
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/system", { cache: "no-store", signal: AbortSignal.timeout(7000) });
-      const data = await response.json();
-      setHealth(data);
-    } catch { setHealth({ status: "unavailable", database: "unavailable" }); }
-    finally { setLoading(false); setCheckedAt(new Date().toLocaleTimeString()); }
-  }, []);
-  useEffect(() => { void refresh(); }, [refresh]);
-  const connected = health?.status === "ok";
-
-  return <div className="workspace">
-    <aside className="sidebar">
-      <a href="/" className="brand"><span className="brand-mark" aria-hidden="true">§</span><span>LEGAL EVIDENCE<small>ANALYSIS SYSTEM</small></span></a>
-      <p className="nav-label">WORKSPACE</p>
-      <nav aria-label="Main navigation">
-        <a className="nav-active" href="/">◈ <span>Overview</span></a>
-        <a href="/cases">◇ <span>Cases & evidence</span></a>
-        <a href="/login">◇ <span>Login</span></a>
-        <a href="/register">◇ <span>Register</span></a>
-        {["Legal research", "Reports"].map(label => <button key={label} disabled title="Available in a later phase"><span aria-hidden="true">◇</span> {label}<small>Planned</small></button>)}
-      </nav>
-      <div className="sidebar-note"><span className="tiny-label">ACADEMIC PROJECT</span><p>Built for careful inquiry.<br />Designed for human review.</p><span>India · Development workspace</span></div>
-    </aside>
-    <div className="main-shell">
-      <header><span>Workspace <span className="breadcrumb">/ Overview</span></span><span className="environment"><i /> Local development</span></header>
-      <main>
-        <div className="page-heading"><div><p className="eyebrow">FOUNDATION / PHASE 01</p><h1>A clearer view of the evidence.</h1><p className="subtitle">Your legal research and investigation workspace starts here.</p></div><span className="phase-badge">Foundation preview</span></div>
-        <section className="hero" aria-labelledby="foundation-title"><div><span className="tiny-label">BUILDING THE FOUNDATION</span><h2 id="foundation-title">One workspace.<br />Every source accounted for.</h2><p>The application foundation connects the interface, API and database. Case management and evidence analysis will follow in reviewed development phases.</p><a href="#system" className="hero-link">View system connections <span aria-hidden="true">↗</span></a></div><div className="hero-emblem" aria-hidden="true"><span>§</span><small>INTEGRITY · CONTEXT · REVIEW</small></div></section>
-        <section id="system" aria-labelledby="system-title"><div className="section-heading"><div><h2 id="system-title">System connections</h2><p>Live checks from the application, without sample case data.</p></div><button onClick={() => void refresh()} disabled={loading} className="refresh">{loading ? "Checking…" : "↻ Refresh status"}</button></div>
-          <div className="status-grid" aria-live="polite" aria-busy={loading}>
-            <article className="status-card"><span className="card-icon" aria-hidden="true">⌘</span><h3>Frontend</h3><p>Next.js · App Router</p><span className="status good">Page loaded</span></article>
-            <article className="status-card"><span className="card-icon" aria-hidden="true">⇄</span><h3>API & readiness</h3><p>FastAPI · REST</p><span className={`status ${connected ? "good" : "pending"}`}>{loading ? "Checking" : connected ? "Ready" : "Unavailable / not ready"}</span></article>
-            <article className="status-card"><span className="card-icon" aria-hidden="true">▤</span><h3>Database</h3><p>PostgreSQL · Alembic</p><span className={`status ${connected ? "good" : "pending"}`}>{loading ? "Checking" : connected ? "Connected & migrated" : "Connection unverified"}</span></article>
-          </div>
-          <p className="check-note">{checkedAt ? `Last checked at ${checkedAt}.` : "Checking application readiness."} {!loading && !connected && "Start the backend and apply the database migration, then refresh."}</p>
-        </section>
-        <div className="lower-grid"><section className="panel"><span className="eyebrow">YOUR WORKSPACE</span><h2>Private cases & evidence</h2><div className="empty-symbol" aria-hidden="true">▱</div><h3>Open your case workspace</h3><p>Sign in to view your authorized cases, preserve original evidence and verify file hashes. Case details require current permission.</p><a href="/cases" className="outline-tag">Open cases</a></section>
-        <section className="panel roadmap"><span className="eyebrow">WHAT COMES NEXT</span><h2>A measured path forward</h2>{modules.map(([phase, title, text]) => <div className="roadmap-row" key={phase}><span>{phase}</span><div><h3>{title}</h3><p>{text}</p></div></div>)}</section></div>
-        <footer><span>AI Legal Evidence Analysis System</span><span>Decision support · Qualified human review required</span></footer>
-      </main>
-    </div>
-  </div>;
+import { Frame, Icon } from "./workspace/components";
+import { jsonApi } from "./workspace/api";
+type CaseRow={id:string;title:string;reference:string;status:string;jurisdiction:string};
+export default function Home(){
+ const [health,setHealth]=useState<{status:string;database:string;migration?:string}|null>(null),[judgments,setJudgments]=useState<number|null>(null),[cases,setCases]=useState<CaseRow[]>([]),[total,setTotal]=useState<number|null>(null),[user,setUser]=useState<{display_name:string}|null>(null),[busy,setBusy]=useState(true),[error,setError]=useState("");
+ const refresh=useCallback(async()=>{setBusy(true);setError("");try{const [status,corpus]=await Promise.all([fetch("/api/system",{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error("Backend readiness check failed");return r.json();}),jsonApi("/judgments?limit=1")]);setHealth(status);setJudgments(corpus.total);let identity;try{identity=await jsonApi("/auth/me");}catch(e){if(e instanceof Error&&"status" in e&&e.status===401){setUser(null);setCases([]);setTotal(null);return;}throw e;}setUser(identity);const result=await jsonApi("/cases?limit=5");setCases(result.items);setTotal(result.total);}catch(e){setError(e instanceof Error?e.message:"Dashboard unavailable");}finally{setBusy(false);}},[]);
+ useEffect(()=>{void refresh();},[refresh]);
+ return <Frame><div className="page-title"><div><span className="eyebrow">INVESTIGATION OVERVIEW</span><h1>{user?`Welcome back, ${user.display_name}`:"Your investigation workspace"}</h1><p>Connect evidence, understand observations and prepare source-grounded reports.</p></div><Link className="button-link" href="/cases/new"><Icon name="plus"/>Create case</Link></div>
+ <section className="dashboard-intro"><div><span className="eyebrow">EVIDENCE TO INSIGHT</span><h2>A clear path through every investigation.</h2><p>Preserve original evidence, inspect local AI observations, research genuine judgments and bring the findings into human review.</p><Link className="button-link" href="/cases">Open your case workspace <span aria-hidden="true">&rarr;</span></Link></div><div className="workflow-steps"><span>01 <strong>Collect & preserve</strong></span><span>02 <strong>Analyze & research</strong></span><span>03 <strong>Report & review</strong></span></div></section>
+ <div className="metric-grid"><div className="metric-card"><Icon name="cases"/><span>Accessible cases</span><strong>{busy?"Loading":total??"Sign in"}</strong><small>Your authorized case scope</small></div><div className="metric-card"><Icon name="research"/><span>Judgment library</span><strong>{judgments??"Unavailable"}</strong><small>Actual records from the public corpus</small></div><div className="metric-card" id="service-status"><Icon name="shield"/><span>Backend connection</span><strong>{health?.status==="ok"?"Connected":busy?"Checking":"Unavailable"}</strong><small>PostgreSQL: {health?.database??"Checking"}</small></div></div>
+ {error&&<p role="alert">{error}</p>}<div className="section-heading"><div><span className="eyebrow">YOUR WORK</span><h2>Recent cases</h2></div><button className="secondary" disabled={busy} onClick={()=>void refresh()}>{busy?"Refreshing...":"Refresh overview"}</button></div>
+ {busy?<p role="status">Loading live workspace records...</p>:!user?<div className="empty-state"><Icon name="shield"/><h3>Your private cases stay private</h3><p>Sign in to see the cases assigned to your account.</p><Link className="button-link" href="/login">Sign in</Link><Link href="/register">Create an account</Link></div>:!cases.length?<div className="empty-state"><Icon name="cases"/><h3>Your first case starts here</h3><p>Create a case to organize authorized evidence and start your investigation workflow.</p><Link className="button-link" href="/cases/new">Create case</Link></div>:<div className="table-scroll"><table><thead><tr><th>Case</th><th>Reference</th><th>Jurisdiction</th><th>Status</th><th>Workspace</th></tr></thead><tbody>{cases.map(row=><tr key={row.id}><td><strong>{row.title}</strong></td><td>{row.reference}</td><td>{row.jurisdiction}</td><td><span className="status-badge">{row.status}</span></td><td><Link href={`/cases/${row.id}`}>Open case &rarr;</Link></td></tr>)}</tbody></table></div>}
+ <div className="quick-links"><Link href="/cases"><Icon name="evidence"/><strong>Evidence & analysis</strong><span>Open a case to upload and inspect documents, images and videos.</span></Link><Link href="/research"><Icon name="research"/><strong>Judgment research</strong><span>Search genuine source passages and inspect their provenance.</span></Link><Link href="/cases"><Icon name="shield"/><strong>Reports & review</strong><span>Generate private reports from a case and record human decisions.</span></Link></div>
+ </Frame>;
 }

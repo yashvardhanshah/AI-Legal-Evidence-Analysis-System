@@ -1,5 +1,28 @@
 # AI Legal Evidence Analysis System
 
+## Final local application (Phase 8)
+
+The integrated frontend is **LEXISCOPE - Legal Investigation Intelligence**. All data, analysis, permissions and report controls use the existing FastAPI services. The redesigned sidebar, live dashboard and case workspace connect evidence, document/visual analysis, research and report review. [Phase 8 delivery report](docs/PHASE8_REPORT.md) records actual verification and limitations. Earlier phase sections below are historical implementation references.
+
+For this configured installation, start Docker Desktop, preserve the existing `.env`, `.local/phase2` and PostgreSQL volume, then run:
+
+```powershell
+docker compose up --no-build --wait --wait-timeout 180
+```
+
+Open **http://localhost:3000**; API documentation is **http://localhost:8000/docs**. Existing model/data/image caches are reused. Do not use `down -v` or reset private storage. After changing frontend source, rebuild only the frontend with `docker compose build --pull=false frontend` and start it with `docker compose up --no-build --no-deps --wait frontend`.
+
+1. Register or sign in. Registration creates an unprivileged legal researcher; no credentials are seeded in source.
+2. Open **Cases > Create case**, enter your own case metadata, then use the case sections: **Overview**, **Evidence & AI analysis**, **Legal research**, **Reports & review**, **Access & audit**.
+3. Upload authorized PDF/JPG/PNG/MP4 evidence with its actual provenance. Original SHA-256 is verified. Use **Analyze Evidence**, **Analyze Image/Video**, and **View Analysis/Results** for real background jobs and source-linked observations.
+4. In **Access & audit**, the owner can assign already registered collaborators. Investigators/lawyers can work on assigned active cases; researchers assigned to another person's case have read-only access. Case research/report generation requires investigator, lawyer or administrator role; report approval/rejection additionally requires an authorized lawyer or administrator.
+5. Select completed extraction spans in case research and inspect the retrieved judgment sources. Use global **Legal research** for public judgment search. **Verified statutory recommendations are currently unavailable.**
+6. Generate a report, inspect/preview/download its PDF and source snapshot, and record attributed notes plus an authorized explicit approval/rejection. The PDF stays immutable; approval is external and bound to its hashes. Log out using the identity panel.
+
+For a genuinely fresh installation, configure `.env` from `.env.example` with your own strong database secret, build the services and migrate normally. Existing models/data require their documented provenance/license/acquisition steps and any required download approval; `--no-build` assumes the images already exist. To establish your intended first administrator, register that identity and use the existing trusted local operator command `docker compose exec -T backend python -m app.manage_users YOUR_REGISTERED_EMAIL --bootstrap-administrator`; it refuses if an active administrator already exists. Public registration cannot grant privileged roles. Never print or commit passwords, tokens, evidence, reports or private storage.
+
+This is a **local academic application**, not production deployment. Statutory imports remain zero; AI outputs require human review and do not establish guilt, intent or admissibility. MFA, account recovery, production TLS/secure cookies, external audit signing, malware scanning, backups/host ACL review and deployment hardening remain production requirements. No external AI service, paid infrastructure or public deployment is added in Phase 8.
+
 Academic investigation and legal research decision support for India. Phases 1 and 2 provide the application stack, 50 licensed public judgments and 3,834 persisted embeddings. Phase 3 adds cookie JWT authentication, case ownership/sharing, role checks, private evidence upload/download and audit logs. Keep services on loopback. See [the access policy](docs/SECURITY.md) before using private evidence.
 
 ## Phase 6 local legal research
