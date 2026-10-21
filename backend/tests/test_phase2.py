@@ -100,7 +100,7 @@ def test_additive_migrations_preserve_phase1():
             command.upgrade(config, "head")
             assert connection.scalar(text("SELECT value FROM system_metadata WHERE key='preservation_probe'")) == "retained"
             assert connection.scalar(text("SELECT value FROM system_metadata WHERE key='development_phase'")) == "1"
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0006_legal_research"
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0007_case_reports"
             tables = set(inspect(connection).get_table_names(schema=schema))
             assert {"dataset_sources", "judgments", "judgment_passages", "legal_provisions", "cases", "evidence", "evidence_artifacts", "processing_jobs", "audit_logs"}.issubset(tables)
         finally:

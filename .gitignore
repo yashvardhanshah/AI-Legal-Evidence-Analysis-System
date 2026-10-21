@@ -120,3 +120,9 @@ Thumbs.db
 .docker/
 test-results/
 playwright-report/
+
+# Case-private immutable report outputs and source snapshots
+investigation-reports/
+report-snapshots/
+report-*-snapshot.json
+report-*-v*.json

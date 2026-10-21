@@ -6,6 +6,7 @@ import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { api, ApiError, jsonApi } from "./api";
 import { EvidenceAnalysis } from "./analysis";
 import { VisualAnalysis } from "./visual";
+import { CaseReports } from "./reports";
 import { CaseResearch } from "./research";
 import "./workspace.css";
 
@@ -128,6 +129,7 @@ export function CaseDetail({ id }: { id: string }) {
       {row.can_write ? <form key={row.id+row.title+row.description} onSubmit={e => { e.preventDefault(); const data = new FormData(e.currentTarget); void action(async () => { await jsonApi(`/cases/${id}`, "PATCH", caseBody(data)); await load(); setNotice("Case saved."); }); }}><CaseInputs row={row} /><button disabled={busy}>Save changes</button></form> : <section><p>{row.description || "No description supplied."}</p><p>Jurisdiction: {row.jurisdiction}</p><p>Opened: {row.opened_on}; incident: {row.incident_on || "Not supplied"}</p><p>This case is read-only for your account.</p></section>}
       {row.can_manage && row.status === "active" && <button disabled={busy} onClick={() => { if (window.confirm("Archive this case? Evidence will remain available and the case will become read-only.")) void action(async () => { await jsonApi(`/cases/${id}/archive`, "POST"); await load(); }); }}>Archive case</button>}
       <CaseResearch caseId={id} canInitiate={row.can_write && !!user && ["administrator","investigator","lawyer"].includes(user.role)} />
+      <CaseReports caseId={id} canGenerate={row.can_write && !!user && ["administrator","investigator","lawyer"].includes(user.role)} canApprove={row.can_write && !!user && ["administrator","lawyer"].includes(user.role)} />
       <h2>Evidence</h2><p>Originals are preserved unchanged. Downloads require current case access.</p>
       {row.can_write && <form onSubmit={e => { e.preventDefault(); const element = e.currentTarget, form = new FormData(element), file = form.get("file") as File; void action(async () => {
         if (!file?.size || (maxBytes !== null && file.size > maxBytes)) throw new Error("Select a non-empty file within the displayed size limit.");

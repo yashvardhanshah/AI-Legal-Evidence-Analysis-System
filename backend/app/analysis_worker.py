@@ -15,12 +15,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.analysis_jobs import fail_job, now, run_analysis
 from app.config import get_settings
 from app.database import get_engine
-from app.models import EvidenceAnalysis, VisualAnalysis, ResearchRun, ProcessingJob, SystemMetadata
+from app.models import EvidenceAnalysis, VisualAnalysis, ResearchRun, ReportVersion, ProcessingJob, SystemMetadata
 
 HEARTBEAT = "analysis_worker_heartbeat"
 
 def heartbeat_key(kind):
-    return {'evidence_analysis':HEARTBEAT,'visual_analysis':'visual_worker_heartbeat','legal_research':'research_worker_heartbeat'}[kind]
+    return {'evidence_analysis':HEARTBEAT,'visual_analysis':'visual_worker_heartbeat','legal_research':'research_worker_heartbeat','case_report':'report_worker_heartbeat'}[kind]
 
 
 def heartbeat(kind='evidence_analysis'):
@@ -56,7 +56,7 @@ def claim(db, guard, kind='evidence_analysis'):
         if not guard.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": lock_key}):
             continue
         if job.status == "processing":
-            record = {'evidence_analysis':EvidenceAnalysis,'visual_analysis':VisualAnalysis,'legal_research':ResearchRun}[kind]
+            record = {'evidence_analysis':EvidenceAnalysis,'visual_analysis':VisualAnalysis,'legal_research':ResearchRun,'case_report':ReportVersion}[kind]
             prior = db.scalar(select(record).where(record.job_id == job.id, record.attempt == job.attempts))
             if prior and prior.status == "processing":
                 prior.status, prior.error_code, prior.finished_at = "interrupted", "worker_interrupted", clock
@@ -81,6 +81,8 @@ def process_once(kind='evidence_analysis'):
         from app.visual_jobs import fail_job as failure
     elif kind == 'legal_research':
         from app.research_jobs import fail_job as failure
+    elif kind == 'case_report':
+        from app.report_jobs import fail_job as failure
     # Dedicated connection holds a session advisory lock across child processing.
     with get_engine().connect().execution_options(isolation_level="AUTOCOMMIT") as guard:
         with Session(get_engine()) as db:
@@ -130,7 +132,7 @@ def main():
     parser.add_argument("--health", action="store_true")
     parser.add_argument("--execute", type=UUID)
     parser.add_argument("--lease", type=UUID)
-    parser.add_argument('--kind', choices=['evidence_analysis','visual_analysis','legal_research'], default='evidence_analysis')
+    parser.add_argument('--kind', choices=['evidence_analysis','visual_analysis','legal_research','case_report'], default='evidence_analysis')
     args = parser.parse_args()
     if args.health:
         raise SystemExit(0 if healthy(args.kind) else 1)
@@ -142,6 +144,8 @@ def main():
             from app.visual_jobs import run_analysis as runner
         elif args.kind == 'legal_research':
             from app.research_jobs import run_analysis as runner
+        elif args.kind == 'case_report':
+            from app.report_jobs import run_analysis as runner
         runner(args.execute, args.lease)
         return
     while True:

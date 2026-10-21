@@ -1,5 +1,7 @@
 # Public legal source register
 
+Phase 7 acquires no legal dataset, model or test-media file. Reports reuse existing authorized evidence and actual stored judgment passages, retaining source attribution/license metadata and explicitly disclosing zero statutory imports. The only new Python package is BSD ReportLab 5.0.1, 1,957,258 bytes, pinned to PyPI SHA-256 `1c36e6bb0e71780c72331eba60da7f602e8d4389a8723825af71342e49d791e8`; its bundled Bitstream Vera copyright/permission notice is included in generated PDFs. See docs/PHASE7_REPORT.md.
+
 ## Phase 6 source/access review — 2026-10-21
 
 The [India Code landing page](https://www.indiacode.nic.in/) still announces migration. Unlike the research browser, direct HTTPS reached `https://indiacode.gov.in/` (200; JavaScript shell), its public configuration and advertised `https://indiacode.gov.in/server/api` (200). Public discovery metadata is accessible, but broad act-name searches also return section headings and subordinate rules: search hits are not accepted as verified complete Acts. Resolving the three old act handles through the new public identifier API returned HTTP errors. No authentication/access restriction was bypassed, and no statute PDF or complete Act was acquired, and no statutory text was imported or indexed.

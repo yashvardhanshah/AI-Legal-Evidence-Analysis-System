@@ -205,3 +205,14 @@ docker compose exec -T backend python -m app.verify_phase3 --verify-existing
 ```
 
 Both Phase 3 flows log out before returning. These are genuine public-source verification copies, not fabricated private case evidence. No datasets or Phase 2 weights are downloaded again. Phase 3 has been reviewed and pushed; Phase 4 is now explicitly authorized and must stop for its own review before any commit/push or Phase 5 work.
+
+
+## Phase 7 private investigation reports
+
+Phase 7 is reviewed and approved for commit/push subject to final staged-content checks: **135 passed, 0 failed, 1 gated statute-data skip**. Phase 6 is pushed as `a917344`. The existing case page now queues deterministic private report generation, shows status/version history, previews/downloads hash-verified PDF and source snapshots, and records attributed notes plus explicit lawyer/administrator approval or rejection. Reports preserve source references, distinguish automated observations from human interpretations, and remain review copies with externally recorded approval. No guilt, admissibility or statutory recommendation is asserted; verified statutory imports remain zero. See [PHASE7_REPORT.md](docs/PHASE7_REPORT.md) for actual verification, API/role/limit details and exact commands. The owner approved Phase 7 commit/push after exact-file review and a final staged-content scan. UI redesign and Phase 8 remain unauthorized.
+
+```powershell
+docker compose up --no-build --wait --wait-timeout 180
+docker compose exec -T backend python -m app.verify_phase7 --preservation-only
+docker compose exec -T backend python -m app.verify_phase7 --verify-existing
+```

@@ -10,6 +10,8 @@ COPY requirements-phase3.lock ./
 RUN pip install --no-cache-dir -r requirements-phase3.lock && pip check
 COPY requirements-phase5.lock ./
 RUN pip install --no-cache-dir --no-deps --require-hashes -r requirements-phase5.lock && pip check
+COPY requirements-phase7.lock ./
+RUN pip install --no-cache-dir --no-deps --require-hashes -r requirements-phase7.lock && pip check
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home appuser && mkdir /private_data && chown appuser:appuser /private_data
 ENV PRIVATE_ROOT=/private_data HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 ANONYMIZED_TELEMETRY=False TOKENIZERS_PARALLELISM=false OMP_NUM_THREADS=2

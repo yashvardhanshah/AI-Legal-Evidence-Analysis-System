@@ -430,3 +430,51 @@ class ResearchReview(Base):
     disposition: Mapped[str] = mapped_column(String(30))
     note: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
+
+
+class ReportVersion(Base):
+    __tablename__ = 'report_versions'
+    __table_args__ = (
+        UniqueConstraint('job_id', 'attempt', name='uq_report_attempt'),
+        UniqueConstraint('case_id', 'version', name='uq_report_case_version'),
+        CheckConstraint("status IN ('processing','completed','failed','interrupted')", name='ck_report_status'),
+        CheckConstraint('version > 0 AND attempt > 0', name='ck_report_version'),
+        CheckConstraint("status != 'completed' OR (pdf_sha256 IS NOT NULL AND snapshot_sha256 IS NOT NULL AND page_count IS NOT NULL AND byte_size IS NOT NULL AND length(pdf_sha256)=64 AND length(snapshot_sha256)=64 AND page_count>0 AND byte_size>0 AND pdf_key IS NOT NULL AND snapshot_key IS NOT NULL AND finished_at IS NOT NULL)", name='ck_report_completed'),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    case_id: Mapped[UUID] = mapped_column(ForeignKey('cases.id', ondelete='RESTRICT'), index=True)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey('processing_jobs.id', ondelete='RESTRICT'), index=True)
+    requested_by: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='RESTRICT'))
+    version: Mapped[int] = mapped_column(Integer)
+    attempt: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20))
+    title: Mapped[str] = mapped_column(String(300))
+    pipeline_version: Mapped[str] = mapped_column(String(100))
+    snapshot: Mapped[dict] = mapped_column(JSONB, default=dict)
+    snapshot_sha256: Mapped[str | None] = mapped_column(String(64))
+    snapshot_key: Mapped[str | None] = mapped_column(Text)
+    pdf_sha256: Mapped[str | None] = mapped_column(String(64))
+    pdf_key: Mapped[str | None] = mapped_column(Text)
+    byte_size: Mapped[int | None] = mapped_column(BigInteger)
+    page_count: Mapped[int | None] = mapped_column(Integer)
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReportReview(Base):
+    __tablename__ = 'report_reviews'
+    __table_args__ = (
+        CheckConstraint("disposition IN ('note','approved','rejected')", name='ck_report_review'),
+        Index('uq_report_decision', 'report_id', unique=True, postgresql_where=text("disposition IN ('approved','rejected')")),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    report_id: Mapped[UUID] = mapped_column(ForeignKey('report_versions.id', ondelete='RESTRICT'), index=True)
+    reviewer_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='RESTRICT'))
+    reviewer_name: Mapped[str] = mapped_column(String(100))
+    reviewer_role: Mapped[str] = mapped_column(String(30))
+    disposition: Mapped[str] = mapped_column(String(20))
+    note: Mapped[str] = mapped_column(Text)
+    pdf_sha256: Mapped[str] = mapped_column(String(64))
+    snapshot_sha256: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
