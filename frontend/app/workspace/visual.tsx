@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { EmptyState, JobProgress, Loading } from "./ui";
 import { api, jsonApi } from "./api";
 
 type Job = { id: string; status: string; processed: number; total: number; attempts: number; max_attempts: number; message: string | null };
@@ -55,23 +56,23 @@ export function VisualAnalysis({ caseId, evidenceId, mime, canWrite }: { caseId:
     try { await jsonApi(base+"/visual-analysis", "POST", { reanalyze }); await load(); }
     catch (e) { setError(message(e)); } finally { setBusy(false); }
   }
-  return <section aria-label="Visual evidence analysis">
-    <h3>Visual object candidates</h3><p>Object detections do not identify people, establish intent, or prove that a crime occurred. Video results cover sampled frames, with no continuous tracking.</p>
+  return <section className="analysis-studio visual-studio" aria-label="Visual evidence analysis"><span className="eyebrow">LOCAL COMPUTER VISION</span>
+    <h3>Image & video intelligence</h3><p>Object detections do not identify people, establish intent, or prove that a crime occurred. Video results cover sampled frames, with no continuous tracking.</p>
     <div className="actions">{canWrite && <button disabled={busy || active} onClick={() => void trigger()}>{active ? "Visual analysis in progress" : mime === "video/mp4" ? "Analyze Video" : "Analyze Image"}</button>}
       <button disabled={!completed.length || busy} onClick={() => { setSelected(completed[0]); setOffset(0); setOpen(value => !value); }}>View Results</button>
       <button disabled={busy} onClick={() => void load()}>Refresh visual status</button></div>
-    {error && <p role="alert">{error}</p>}{!loaded && !error && <p role="status">Loading visual status...</p>}{loaded && !jobs.length && <p>No visual analysis requested yet.</p>}
-    {jobs.slice(0,3).map(job => <div key={job.id}><p role="status">{job.status}: {job.processed}/{job.total || "?"} sample budget, attempt {job.attempts}/{job.max_attempts}</p>{job.message && <p>{job.message}</p>}
+    {error && <p role="alert">{error}</p>}{!loaded && !error && <Loading label="Loading visual analysis status"/>}{loaded && !jobs.length && <EmptyState title="Ready for visual analysis" text="Detect supported object candidates using the pinned local YOLOX model." icon="image"/>}
+    {jobs.slice(0,3).map(job => <div key={job.id}><JobProgress job={job} unit="samples"/>{job.message && <p>{job.message}</p>}
       {canWrite && job.status === "failed" && job.attempts < job.max_attempts && <button disabled={busy || active} onClick={async () => { setBusy(true); try { await jsonApi(`${base}/visual-jobs/${job.id}/retry`,"POST"); await load(); } catch (e) { setError(message(e)); } finally { setBusy(false); } }}>Retry visual analysis</button>}</div>)}
-    {open && selected && <div><label>Visual analysis version<select value={selected.id} onChange={e => { setSelected(completed.find(r => r.id === e.target.value) ?? null); setOffset(0); }}>{completed.map(r => <option key={r.id} value={r.id}>{r.pipeline_version} {r.id.slice(0,8)}</option>)}</select></label>
+    {open && selected && <div className="analysis-results"><label>Visual analysis version<select value={selected.id} onChange={e => { setSelected(completed.find(r => r.id === e.target.value) ?? null); setOffset(0); }}>{completed.map(r => <option key={r.id} value={r.id}>{r.pipeline_version} {r.id.slice(0,8)}</option>)}</select></label>
       <p>Original SHA-256: <code>{selected.original_sha256}</code></p>{selected.model && <p>{selected.model.name} / {selected.model.revision} / {selected.model.license_id}</p>}
       {selected.media.sampling && <p>{selected.media.sampling}</p>}{selected.media.timestamp_basis && <p>{selected.media.timestamp_basis}</p>}
       <div className="actions"><button disabled={!offset} onClick={() => setOffset(offset-1)}>Previous sampled frame</button><span>Sample {offset+1} of {selected.frame_count}</span><button disabled={offset+1 >= selected.frame_count} onClick={() => setOffset(offset+1)}>Next sampled frame</button></div>
       {!frame ? <p role="status">Loading authenticated visual artifacts...</p> : <><p>Source frame {frame.frame_index}; elapsed presentation timestamp {frame.timestamp_ms.toFixed(3)} ms; {frame.width} x {frame.height}; inference {frame.inference_ms.toFixed(2)} ms. Artifact hashes verified.</p>
         <p>Decoded BGR pixel SHA-256: <code>{frame.pixel_sha256}</code></p>
-        <figure><img src={source} alt={`Unannotated source sample at frame ${frame.frame_index}`} style={{maxWidth:"100%",maxHeight:"28rem"}} /><figcaption>Decoded source derivative; original evidence unchanged.</figcaption></figure>
-        <figure><img src={annotated} alt={`YOLOX annotations for frame ${frame.frame_index}`} style={{maxWidth:"100%",maxHeight:"28rem"}} /><figcaption>Actual YOLOX object candidates; scores are uncalibrated.</figcaption></figure>
-        {!frame.detections.length ? <p>No supported object candidate exceeded the configured threshold in this sample.</p> : <div style={{overflowX:"auto"}}><table><thead><tr><th>Class</th><th>Reported score</th><th>Source-pixel box (x1,y1,x2,y2)</th></tr></thead><tbody>{frame.detections.map(d => <tr key={d.id}><td>{d.label} ({d.class_id})</td><td>{d.confidence.toFixed(4)}</td><td>{[d.x1,d.y1,d.x2,d.y2].map(v => v.toFixed(2)).join(", ")}</td></tr>)}</tbody></table></div>}</>}
+        <div className="visual-comparison"><figure><img src={source} alt={`Unannotated source sample at frame ${frame.frame_index}`} style={{maxWidth:"100%",maxHeight:"28rem"}} /><figcaption>Decoded source derivative; original evidence unchanged.</figcaption></figure>
+        <figure><img src={annotated} alt={`YOLOX annotations for frame ${frame.frame_index}`} style={{maxWidth:"100%",maxHeight:"28rem"}} /><figcaption>Actual YOLOX object candidates; scores are uncalibrated.</figcaption></figure></div>
+        {!frame.detections.length ? <p>No supported object candidate exceeded the configured threshold in this sample.</p> : <div className="table-scroll"><table><thead><tr><th>Class</th><th>Reported score</th><th>Source-pixel box (x1,y1,x2,y2)</th></tr></thead><tbody>{frame.detections.map(d => <tr key={d.id}><td>{d.label} ({d.class_id})</td><td>{d.confidence.toFixed(4)}</td><td>{[d.x1,d.y1,d.x2,d.y2].map(v => v.toFixed(2)).join(", ")}</td></tr>)}</tbody></table></div>}</>}
       {canWrite && <button disabled={busy || active} onClick={() => void trigger(true)}>Request new visual version</button>}
     </div>}
   </section>;

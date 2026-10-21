@@ -126,3 +126,8 @@ investigation-reports/
 report-snapshots/
 report-*-snapshot.json
 report-*-v*.json
+
+# Reviewed anonymous documentation captures only; private media stays ignored.
+!docs/screenshots/final-dashboard.png
+!docs/screenshots/final-login.png
+!docs/screenshots/final-mobile-registration.png

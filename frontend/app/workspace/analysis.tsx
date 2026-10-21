@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { EmptyState, JobProgress, Loading } from "./ui";
 import { jsonApi } from "./api";
 
 type Job = { id: string; status: string; attempts: number; max_attempts: number; processed: number; total: number; message: string | null; next_attempt_at: string | null };
@@ -39,23 +40,23 @@ export function EvidenceAnalysis({ caseId, evidenceId, mime, canWrite }: { caseI
   }
   const completed = runs.filter(run => run.status === "completed");
   const characters = Array.from(page?.text ?? ""); // Match backend Unicode code-point offsets, including non-BMP text.
-  return <section aria-label="Document analysis">
-    <h3>Document analysis</h3><p>Extracted text and entity candidates require human review. Model scores are not factual confidence or legal findings.</p>
+  return <section className="analysis-studio" aria-label="Document analysis"><span className="eyebrow">OCR & NATURAL LANGUAGE</span>
+    <h3>Document intelligence</h3><p>Extracted text and entity candidates require human review. Model scores are not factual confidence or legal findings.</p>
     <div className="actions">{canWrite && <button disabled={busy || active} onClick={() => void trigger()}>{busy ? "Queuing…" : active ? "Analysis in progress" : "Analyze Evidence"}</button>}
       <button disabled={!completed.length || busy} onClick={() => { setSelected(completed[0]); setPageNumber(1); setOpen(value => !value); }}>View Analysis</button>
       <button disabled={busy} onClick={() => void load()}>Refresh analysis status</button>
     </div>
-    {error && <p role="alert">{error}</p>}{!loaded && !error && <p role="status">Loading analysis status…</p>}
-    {loaded && !jobs.length && <p>No analysis requested yet.</p>}
-    {jobs.slice(0, 3).map(job => <div key={job.id}><p role="status">{job.status} · attempt {job.attempts}/{job.max_attempts} · {job.processed}/{job.total || "?"} pages</p>{job.message && <p>{job.message}</p>}
+    {error && <p role="alert">{error}</p>}{!loaded && !error && <Loading label="Loading document analysis status"/>}
+    {loaded && !jobs.length && <EmptyState title="Ready for document analysis" text="Extract text and source-linked entity candidates locally. Review the original when interpreting results."/>}
+    {jobs.slice(0, 3).map(job => <div key={job.id}><JobProgress job={job} unit="pages"/>{job.message && <p>{job.message}</p>}
       {canWrite && job.status === "failed" && job.attempts < job.max_attempts && <button disabled={busy || active} onClick={async () => { setBusy(true); try { await jsonApi(`${base}/analysis-jobs/${job.id}/retry`, "POST"); await load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }}>Retry failed analysis</button>}</div>)}
-    {open && selected && <div><label>Completed analysis version<select value={selected.id} onChange={e => { setSelected(completed.find(run => run.id === e.target.value) ?? null); setPageNumber(1); }}>{completed.map(run => <option key={run.id} value={run.id}>{run.pipeline_version} · attempt {run.attempt} · {run.id.slice(0, 8)}</option>)}</select></label>
+    {open && selected && <div className="analysis-results"><label>Completed analysis version<select value={selected.id} onChange={e => { setSelected(completed.find(run => run.id === e.target.value) ?? null); setPageNumber(1); }}>{completed.map(run => <option key={run.id} value={run.id}>{run.pipeline_version} · attempt {run.attempt} · {run.id.slice(0, 8)}</option>)}</select></label>
       <p>Original SHA-256: <code>{selected.original_sha256}</code></p>{selected.models.map(model => <p key={model.name}>{model.name} · {model.revision} · {model.license_id}</p>)}
       <div className="actions"><button disabled={pageNumber <= 1} onClick={() => setPageNumber(pageNumber-1)}>Previous page</button><span>Page {pageNumber} of {selected.page_count}</span><button disabled={pageNumber >= selected.page_count} onClick={() => setPageNumber(pageNumber+1)}>Next page</button></div>
       {!page ? <p role="status">Loading extracted page…</p> : <><p>{page.extraction_method} · text SHA-256: <code>{page.text_sha256}</code></p><p>{page.ocr_confidence === null ? "OCR confidence unavailable for embedded PDF text." : `Tesseract word-confidence mean: ${page.ocr_confidence.toFixed(2)}/100 (not measured accuracy).`}</p>
         {page.warnings.map(warning => <p key={warning}>{warning}</p>)}
-        <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: "28rem", overflow: "auto", padding: "12px", border: "1px solid #d2dad6" }}>{highlight ? <>{characters.slice(0, highlight.char_start).join("")}<mark>{characters.slice(highlight.char_start, highlight.char_end).join("")}</mark>{characters.slice(highlight.char_end).join("")}</> : page.text || "No text recognized on this page."}</pre>
-        <h4>Source-linked entity candidates</h4>{!page.entities.length ? <p>No supported entity candidates found on this page.</p> : <div style={{ overflowX: "auto" }}><table><thead><tr><th>Type</th><th>Exact text</th><th>Page / offsets</th><th>Extractor</th><th>Reported score</th></tr></thead><tbody>{page.entities.map(entity => <tr key={entity.id}><td>{entity.label}</td><td><button onClick={() => setHighlight(entity)}>{entity.text}</button></td><td>{page.page_number}: [{entity.char_start}, {entity.char_end})</td><td>{entity.extractor === "rule" ? entity.provenance.rule_id : "Pinned DistilBERT NER"}</td><td>{entity.score === null ? "Not scored (literal rule)" : `${entity.score.toFixed(4)} (uncalibrated model score; see provenance)`}</td></tr>)}</tbody></table></div>}
+        <pre className="extracted-text" tabIndex={0} aria-label="Extracted source text">{highlight ? <>{characters.slice(0, highlight.char_start).join("")}<mark>{characters.slice(highlight.char_start, highlight.char_end).join("")}</mark>{characters.slice(highlight.char_end).join("")}</> : page.text || "No text recognized on this page."}</pre>
+        <h4>Source-linked entity candidates</h4>{!page.entities.length ? <p>No supported entity candidates found on this page.</p> : <div className="table-scroll"><table><thead><tr><th>Type</th><th>Exact text</th><th>Page / offsets</th><th>Extractor</th><th>Reported score</th></tr></thead><tbody>{page.entities.map(entity => <tr key={entity.id}><td>{entity.label}</td><td><button onClick={() => setHighlight(entity)}>{entity.text}</button></td><td>{page.page_number}: [{entity.char_start}, {entity.char_end})</td><td>{entity.extractor === "rule" ? entity.provenance.rule_id : "Pinned DistilBERT NER"}</td><td>{entity.score === null ? "Not scored (literal rule)" : `${entity.score.toFixed(4)} (uncalibrated model score; see provenance)`}</td></tr>)}</tbody></table></div>}
       </>}{canWrite && <button disabled={busy || active} onClick={() => void trigger(true)}>Request new analysis version</button>}
     </div>}
   </section>;
