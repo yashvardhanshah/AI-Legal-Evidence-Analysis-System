@@ -1,5 +1,7 @@
 # Model and processing register
 
+Phase 4 adds a separately approved 261,694,557-byte Apache-2.0 DistilBERT NER snapshot, versioned deterministic mention rules and real Tesseract TSV provenance. Exact revisions, hashes, licenses, byte sizes and score semantics are documented in [PHASE4_DESIGN.md](docs/PHASE4_DESIGN.md). The Phase 2 encoder and Chroma collection below are unchanged.
+
 Encoder: [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2), Apache-2.0, pinned commit `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`. The [pinned model card](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/blob/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/README.md) describes English sentence/short-paragraph encoding into 384 dimensions and a 256-word-piece context. It is general-purpose and has not been evaluated for Indian legal relevance here.
 
 The approved eleven-file safetensors/tokenizer snapshot is **91,578,415 bytes** in ignored `.local/phase2/models/<revision>/`, mounted at `/private_data/models/<revision>/`. Its manifest records revision, retrieval time, bytes and per-file SHA-256; safetensors is also checked against publisher LFS SHA-256. Runtime verifies local integrity, sets `local_files_only=True`, disables remote custom code and uses CPU inference with two Torch threads. Downloads happen only through an explicit budgeted operator command. No paid API or GPU is used.

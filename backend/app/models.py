@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -166,6 +166,7 @@ class ProcessingJob(Timestamped, Base):
         CheckConstraint("status IN ('queued', 'processing', 'completed', 'failed')", name="ck_job_status"),
         CheckConstraint("attempts >= 0 AND processed >= 0 AND total >= processed", name="ck_job_progress"),
         Index("ix_jobs_status_created", "status", "created_at"),
+        Index("uq_active_evidence_analysis", "evidence_id", unique=True, postgresql_where=text("kind = 'evidence_analysis' AND status IN ('queued', 'processing')")),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     source_id: Mapped[UUID | None] = mapped_column(ForeignKey("dataset_sources.id", ondelete="RESTRICT"), index=True)
@@ -179,6 +180,12 @@ class ProcessingJob(Timestamped, Base):
     details: Mapped[dict] = mapped_column(JSONB, default=dict)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence.id", ondelete="RESTRICT"), index=True)
+    requested_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    max_attempts: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
 
 
 class AuditLog(Base):
@@ -221,3 +228,71 @@ class CaseMember(Base):
     case_id: Mapped[UUID] = mapped_column(ForeignKey("cases.id", ondelete="RESTRICT"), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AnalysisModel(Timestamped, Base):
+    __tablename__ = "analysis_models"
+    __table_args__ = (UniqueConstraint("name", "revision", name="uq_analysis_model_revision"),)
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(255))
+    revision: Mapped[str] = mapped_column(String(128))
+    task: Mapped[str] = mapped_column(String(50))
+    license_id: Mapped[str] = mapped_column(String(100))
+    source_url: Mapped[str] = mapped_column(Text)
+    byte_size: Mapped[int] = mapped_column(BigInteger)
+    file_hashes: Mapped[dict] = mapped_column(JSONB)
+    software: Mapped[dict] = mapped_column(JSONB)
+
+
+class EvidenceAnalysis(Timestamped, Base):
+    __tablename__ = "evidence_analyses"
+    __table_args__ = (UniqueConstraint("job_id", "attempt", name="uq_analysis_job_attempt"),
+                     CheckConstraint("status IN ('processing', 'completed', 'failed', 'interrupted')", name="ck_analysis_status"))
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey("processing_jobs.id", ondelete="RESTRICT"), index=True)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id", ondelete="RESTRICT"), index=True)
+    attempt: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20))
+    original_sha256: Mapped[str] = mapped_column(String(64))
+    pipeline_version: Mapped[str] = mapped_column(String(100))
+    ner_model_id: Mapped[UUID | None] = mapped_column(ForeignKey("analysis_models.id", ondelete="RESTRICT"))
+    ocr_model_id: Mapped[UUID | None] = mapped_column(ForeignKey("analysis_models.id", ondelete="RESTRICT"))
+    artifact_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence_artifacts.id", ondelete="RESTRICT"))
+    settings: Mapped[dict] = mapped_column(JSONB, default=dict)
+    warnings: Mapped[list] = mapped_column(JSONB, default=list)
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AnalysisPage(Base):
+    __tablename__ = "analysis_pages"
+    __table_args__ = (UniqueConstraint("analysis_id", "page_number", name="uq_analysis_page"),
+                     CheckConstraint("page_number > 0 AND (ocr_confidence IS NULL OR (ocr_confidence >= 0 AND ocr_confidence <= 100))", name="ck_analysis_page_confidence"))
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    analysis_id: Mapped[UUID] = mapped_column(ForeignKey("evidence_analyses.id", ondelete="RESTRICT"), index=True)
+    page_number: Mapped[int] = mapped_column(Integer)
+    extraction_method: Mapped[str] = mapped_column(String(50))
+    text: Mapped[str] = mapped_column(Text)
+    text_sha256: Mapped[str] = mapped_column(String(64))
+    ocr_confidence: Mapped[float | None] = mapped_column(Float)
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    ocr_words: Mapped[list] = mapped_column(JSONB, default=list)
+    warnings: Mapped[list] = mapped_column(JSONB, default=list)
+
+
+class AnalysisEntity(Base):
+    __tablename__ = "analysis_entities"
+    __table_args__ = (UniqueConstraint("page_id", "label", "char_start", "char_end", "extractor", name="uq_analysis_entity_span"),
+                     CheckConstraint("char_start >= 0 AND char_end > char_start AND (score IS NULL OR (score >= 0 AND score <= 1))", name="ck_entity_span_score"),
+                     CheckConstraint("label IN ('PERSON', 'ORGANIZATION', 'LOCATION', 'DATE', 'TIME', 'DOCUMENT_REFERENCE')", name="ck_entity_label"))
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    page_id: Mapped[UUID] = mapped_column(ForeignKey("analysis_pages.id", ondelete="RESTRICT"), index=True)
+    model_id: Mapped[UUID | None] = mapped_column(ForeignKey("analysis_models.id", ondelete="RESTRICT"))
+    label: Mapped[str] = mapped_column(String(30))
+    text: Mapped[str] = mapped_column(Text)
+    char_start: Mapped[int] = mapped_column(Integer)
+    char_end: Mapped[int] = mapped_column(Integer)
+    extractor: Mapped[str] = mapped_column(String(30))
+    score: Mapped[float | None] = mapped_column(Float)
+    provenance: Mapped[dict] = mapped_column(JSONB, default=dict)

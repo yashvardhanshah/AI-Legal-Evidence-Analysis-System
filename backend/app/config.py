@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # Set true behind HTTPS before any non-local deployment.
     video_validation_timeout: int = Field(default=20, ge=1, le=60)
     video_max_seconds: int = Field(default=3600, ge=1, le=14400)
+    analysis_max_pages: int = Field(default=50, ge=1, le=200)
+    analysis_max_chars: int = Field(default=1_000_000, ge=1000, le=5_000_000)
+    analysis_max_page_chars: int = Field(default=100_000, ge=1000, le=500_000)
+    analysis_render_dpi: int = Field(default=180, ge=100, le=300)
+    analysis_max_pixels: int = Field(default=16_000_000, ge=1_000_000, le=40_000_000)
+    analysis_ocr_timeout: int = Field(default=45, ge=5, le=120)
+    analysis_job_timeout: int = Field(default=600, ge=30, le=1800)
+    analysis_poll_seconds: int = Field(default=2, ge=1, le=30)
 
 
 @lru_cache

@@ -1,5 +1,7 @@
 # Phase 1 API
 
+Phase 4 document-analysis endpoints and score/offset semantics are listed in [PHASE4_DESIGN.md](PHASE4_DESIGN.md). All are nested under existing private case/evidence paths and preserve the Phase 3 authentication policy. Readiness now accepts additive head `0004_document_analysis`.
+
 Interactive OpenAPI: http://localhost:8000/docs; schema: `/openapi.json`.
 
 | Endpoint | Success | Failure |

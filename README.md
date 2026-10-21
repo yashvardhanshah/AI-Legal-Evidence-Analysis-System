@@ -4,6 +4,26 @@ Academic investigation and legal research decision support for India. Phases 1 a
 
 ## Requirements
 
+Phase 4 adds asynchronous PDF/image OCR and source-linked NLP analysis to authorized evidence pages. It reuses the installed OCR/CPU stack and the explicitly approved local NER snapshot. Details: [design, API, schema and model register](docs/PHASE4_DESIGN.md), [verification results and limitations](docs/PHASE4_REPORT.md). Preserve the existing `.env`, PostgreSQL volume and `.local/phase2`.
+
+```powershell
+docker compose build backend frontend
+docker compose up --no-build --wait --wait-timeout 180
+docker compose exec -T backend alembic check
+docker compose exec -T -e RUN_DB_TESTS=1 -e RUN_CORPUS_TESTS=1 backend python -m pytest -q -p no:cacheprovider
+```
+
+Login, open an authorized case, select **Analyze Evidence**, then **View Analysis** after completion. The separate `worker` service supplies status/progress/retry; no upload or API request performs OCR/inference. Completed page text, candidate entities, exact offsets, hashes and genuine score provenance are displayed without a redesign. Unsupported video analysis remains Phase 5.
+
+An opt-in real worker evaluation reuses the existing private Phase 3 verification receipt and licensed judgment, uploading declared page derivatives only on its first run:
+
+```powershell
+docker compose exec -T backend python -m app.verify_phase4
+docker compose exec -T backend python -m app.verify_phase4 --verify-existing
+```
+
+Measurements and receipts remain private under `.local/phase2/auth`; the worker cannot mount that directory. The command compares with existing source text and reports its reference limitations. It does not fabricate ground-truth accuracy. Phase 4 requires owner review before any commit/push or Phase 5 work.
+
 Node.js 22+, Python 3.13, Git, and a running Docker Desktop Linux-container engine with Docker Compose. Native PostgreSQL is optional. Dependency versions are captured in `frontend/package-lock.json` and `backend/requirements.lock`.
 
 ## Start with Docker (PowerShell, repository root)
@@ -152,4 +172,4 @@ docker compose exec -T backend python -m app.verify_phase3
 docker compose exec -T backend python -m app.verify_phase3 --verify-existing
 ```
 
-Both flows log out before returning. These are genuine public-source verification copies, not fabricated private case evidence. No datasets or model weights are downloaded again. Phase 3 must be reviewed before any commit/push or Phase 4 work.
+Both Phase 3 flows log out before returning. These are genuine public-source verification copies, not fabricated private case evidence. No datasets or Phase 2 weights are downloaded again. Phase 3 has been reviewed and pushed; Phase 4 is now explicitly authorized and must stop for its own review before any commit/push or Phase 5 work.

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { api, ApiError, jsonApi } from "./api";
+import { EvidenceAnalysis } from "./analysis";
 import "./workspace.css";
 
 type User = { id: string; email: string; display_name: string; role: string };
@@ -139,7 +140,7 @@ export function CaseDetail({ id }: { id: string }) {
         const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))).map(v => v.toString(16).padStart(2, "0")).join("");
         if (hash !== file.sha256) throw new Error("Downloaded original failed SHA-256 verification");
         const url = URL.createObjectURL(blob), link = document.createElement("a"); link.href = url; link.download = file.original_filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 10000); setNotice("Download SHA-256 verified.");
-      })}>Download verified original</button></li>)}</ul>}
+      })}>Download verified original</button><EvidenceAnalysis caseId={id} evidenceId={file.id} mime={file.mime_type} canWrite={row.can_write} /></li>)}</ul>}
       <div className="actions"><button disabled={!offset || busy} onClick={() => setOffset(offset-20)}>Previous</button><span>{total} files</span><button disabled={offset+20 >= total || busy} onClick={() => setOffset(offset+20)}>Next</button></div>
       {row.can_manage && <><h2>Case access</h2><p>Assigned investigators and lawyers can edit active cases. Assigned legal researchers have read-only access. Owners manage their own cases.</p>{row.status === "active" && <form onSubmit={e => { e.preventDefault(); const form = new FormData(e.currentTarget); void action(async () => { await jsonApi(`/cases/${id}/members`, "POST", { email: form.get("email") }); await load(); setNotice("Case access granted."); }); }}><label>Registered collaborator email<input type="email" name="email" required /></label><button disabled={busy}>Grant case access</button></form>}
         <ul>{members.map(m => <li key={m.id}>{m.display_name} ({m.email}) · {m.role} <button disabled={busy} onClick={() => void action(async () => { await jsonApi(`/cases/${id}/members/${m.id}`, "DELETE"); await load(); })}>Revoke access</button></li>)}</ul>

@@ -1,5 +1,7 @@
 # Architecture
 
+Phase 4 adds `analysis_api.py` (case-authorized enqueue/results), `analysis_worker.py` (separate durable SQL worker and fenced child processes), `analysis_jobs.py` (attempt/provenance/publishing), `analysis_extraction.py` (embedded text and actual TSV OCR), `analysis_nlp.py` (offline NER and literal spans), and `ner_model.py` (approved acquisition/integrity). Original evidence remains immutable; derived JSON, exact page text, models and source-linked candidates are tracked separately. Chroma and existing public research routes are unchanged. See [PHASE4_DESIGN.md](docs/PHASE4_DESIGN.md).
+
 ```text
 Browser :3000
   -> Next.js App Router / responsive foundation dashboard
